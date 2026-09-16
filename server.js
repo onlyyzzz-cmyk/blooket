@@ -11,12 +11,84 @@ app.use(cors());
 app.use(express.json({ limit: '2mb' }));
 app.use(express.static(__dirname));
 
+// ─────────────────────────────────────────────
+// RATE LIMITER (no external deps, in-memory)
+// ─────────────────────────────────────────────
+const rateLimitStore = new Map();
+
+function rateLimit({ windowMs = 60000, max = 10, message = 'Too many requests. Slow down.' }) {
+  return (req, res, next) => {
+    const key = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket.remoteAddress || 'unknown';
+    const now = Date.now();
+
+    if (!rateLimitStore.has(key)) {
+      rateLimitStore.set(key, { count: 0, resetAt: now + windowMs });
+    }
+
+    const entry = rateLimitStore.get(key);
+
+    if (now > entry.resetAt) {
+      entry.count = 0;
+      entry.resetAt = now + windowMs;
+    }
+
+    entry.count++;
+
+    res.setHeader('X-RateLimit-Limit', max);
+    res.setHeader('X-RateLimit-Remaining', Math.max(0, max - entry.count));
+    res.setHeader('X-RateLimit-Reset', Math.ceil(entry.resetAt / 1000));
+
+    if (entry.count > max) {
+      return res.status(429).json({
+        error: message,
+        retryAfter: Math.ceil((entry.resetAt - now) / 1000),
+      });
+    }
+
+    next();
+  };
+}
+
+// global: 30 req/min per IP
+app.use('/api/', rateLimit({ windowMs: 60000, max: 30 }));
+
+// stricter on lookup: 5 req/min per IP
+const lookupLimiter = rateLimit({
+  windowMs: 60000,
+  max: 5,
+  message: 'Lookup rate limit exceeded. Wait a minute.',
+});
+
+// cleanup stale entries every 5 min
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, val] of rateLimitStore) {
+    if (now > val.resetAt + 300000) rateLimitStore.delete(key);
+  }
+}, 300000);
+
+// ─────────────────────────────────────────────
+// BROWSER HEADERS (mimic real Chrome client)
+// ─────────────────────────────────────────────
+const BROWSER_HEADERS = {
+  'Accept': 'application/json, text/plain, */*',
+  'Accept-Language': 'en-US,en;q=0.9',
+  'Accept-Encoding': 'gzip, deflate, br',
+  'Cache-Control': 'no-cache',
+  'Pragma': 'no-cache',
+  'Sec-Ch-Ua': '"Chromium";v="126", "Google Chrome";v="126", "Not-A.Brand";v="99"',
+  'Sec-Ch-Ua-Mobile': '?0',
+  'Sec-Ch-Ua-Platform': '"Windows"',
+  'Sec-Fetch-Dest': 'empty',
+  'Sec-Fetch-Mode': 'cors',
+  'Sec-Fetch-Site': 'same-site',
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+};
+
 function getBlooketUrl(setId) {
   const value = String(setId || '').trim();
   if (!value) throw new Error('A Set ID is required.');
 
-  // The API expects a Blooket path such as /api/set/12345. Do not allow
-  // arbitrary hosts to turn this endpoint into an SSRF proxy.
   if (/^https?:\/\//i.test(value)) {
     const url = new URL(value);
     if (url.hostname !== 'blooket.com' && !url.hostname.endsWith('.blooket.com')) {
@@ -25,8 +97,6 @@ function getBlooketUrl(setId) {
     return url;
   }
 
-  // Public set pages are HTML and the old blooket.com/api/set path returns
-  // 403. The question-set JSON endpoint is hosted on play.blooket.com.
   if (!value.startsWith('/')) {
     const url = new URL('https://play.blooket.com/api/gamequestionsets');
     url.searchParams.set('gameId', value);
@@ -43,14 +113,15 @@ async function lookupBlooketAnswers(setId) {
   console.log(`Fetching answers for Set ID: ${setId}...\n`);
   const response = await fetch(url, {
     headers: {
-      Accept: 'application/json',
-      'User-Agent': 'BlooketLookup/1.0',
+      ...BROWSER_HEADERS,
+      'Origin': 'https://play.blooket.com',
+      'Referer': 'https://play.blooket.com/',
     },
   });
 
   if (!response.ok) {
     const body = await response.text();
-    if (response.status === 403 && /cloudflare|just a moment/i.test(body)) {
+    if (response.status === 403 && /cloudflare|just a moment|attention required/i.test(body)) {
       throw new Error(
         'Blooket blocked this server request with Cloudflare (HTTP 403). ' +
         'The set endpoint requires an approved browser session; this is not a valid Set ID error.',
@@ -100,8 +171,6 @@ function normalizeAnswers(gameData) {
         };
       }).filter((answer) => answer.text.trim());
 
-      // Some exports only include correctAnswers. Keep those visible rather
-      // than returning an empty answer list to the frontend.
       for (const answer of correctValues) {
         if (!answers.some((item) => item.text === answer)) {
           answers.push({ text: answer, correct: true });
@@ -144,12 +213,12 @@ async function handleLookup(setId, res) {
   }
 }
 
-app.post('/api/lookup', (req, res) => {
+app.post('/api/lookup', lookupLimiter, (req, res) => {
   const setId = req.body && (req.body.setId || req.body.gameId);
   return handleLookup(setId, res);
 });
 
-app.get('/api/lookup/:setId', (req, res) => {
+app.get('/api/lookup/:setId', lookupLimiter, (req, res) => {
   return handleLookup(req.params.setId, res);
 });
 
@@ -163,4 +232,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { app, getBlooketUrl, lookupBlooketAnswers };
+module.exports = { app, getBlooketUrl, lookupBlooketAnswers, rateLimit };
