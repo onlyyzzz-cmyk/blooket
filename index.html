@@ -117,10 +117,10 @@
 <body>
   <div class="container">
     <h1>Blooket Answer Lookup</h1>
-    <p class="sub">Enter a lobby ID. Fetches the full question set and correct answers.</p>
+    <p class="sub">Study sets you own or are authorized to use. Fetching public Blooket sets may be unavailable when the service requires a browser session.</p>
 
     <div class="input-group">
-      <input type="text" id="gameId" placeholder="Lobby ID (e.g. 123456)" maxlength="10" />
+      <input type="text" id="gameId" placeholder="Set ID (e.g. 609bf1b76dfb4c001be2db5a)" maxlength="40" />
       <button id="fetchBtn" onclick="fetchAnswers()">Fetch</button>
     </div>
 
@@ -149,7 +149,7 @@
       const btn = document.getElementById('fetchBtn');
       btn.disabled = true;
       btn.textContent = 'Fetching...';
-      showStatus('Joining game...', true);
+      showStatus('Fetching question set...', true);
 
       try {
         const res = await fetch('/api/lookup', {
