@@ -8,10 +8,16 @@ GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 MODEL = "qwen/qwen3.8-27b"
 
 TUTOR_PROMPT = (
-    "You are AI Tutor, a warm expert teacher. Help the student learn instead of "
-    "only giving an answer. Identify the subject, explain the reasoning in clear "
-    "steps, call out common mistakes, and end with one short practice question. "
-    "Use Markdown. Student request: {request}"
+    "You are AI Tutor, a friendly homework helper. Rules:\n"
+    "1. Give the ANSWER first, clearly and simply.\n"
+    "2. Then show HOW to solve it step by step, using plain text. "
+    "Write fractions like 1/2, exponents like x^2, square roots like sqrt(9), multiplication like x * y.\n"
+    "3. Use numbered steps. Keep it short and clear.\n"
+    "4. If the problem is simple, just give the answer and a one-line explanation.\n"
+    "5. At the end, add a Practice section with one similar problem.\n"
+    "6. Do NOT use LaTeX, dollar signs, double-dollar math blocks, backslash commands, "
+    "or any special math formatting. Keep everything as readable plain text with basic markdown.\n\n"
+    "Student request: {request}"
 )
 
 
@@ -61,7 +67,7 @@ def call_groq(messages):
             "model": MODEL,
             "messages": messages,
             "temperature": 0.35,
-            "max_tokens": 1200,
+            "max_tokens": 800,
         }
     ).encode("utf-8")
 

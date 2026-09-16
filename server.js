@@ -39,11 +39,8 @@ function loadChats() {
 }
 
 function saveChats(chats) {
-  try {
-    fs.writeFileSync(chatsFile, JSON.stringify(chats.slice(-200)));
-  } catch (err) {
-    console.error('Failed to save chats:', err);
-  }
+  try { fs.writeFileSync(chatsFile, JSON.stringify(chats.slice(-200))); }
+  catch (err) { console.error('Failed to save chats:', err); }
 }
 
 function chatSummary(chat) {
@@ -51,7 +48,7 @@ function chatSummary(chat) {
   const preview = typeof first.content === 'string'
     ? first.content
     : (Array.isArray(first.content)
-      ? (first.content.find((part) => part.type === 'text')?.text ?? '')
+      ? (first.content.find((p) => p.type === 'text')?.text ?? '')
       : '');
   return {
     id: chat.id,
@@ -93,20 +90,16 @@ app.post('/api/chats', (req, res) => {
   try {
     const body = req.body ?? {};
     const chats = loadChats();
-
     const messages = Array.isArray(body.messages) ? body.messages : [];
     const clean = messages
       .filter((t) => t && ['user', 'assistant'].includes(t.role) && (typeof t.content === 'string' || Array.isArray(t.content)))
       .slice(0, 80);
     if (!clean.length) return res.status(400).json({ error: 'A chat needs at least one message.' });
-
     const now = Math.floor(Date.now() / 1000);
     const chat = {
       id: randomUUID().slice(0, 12),
       subject: VALID_SUBJECTS.includes(body.subject) ? body.subject : 'Math',
-      messages: clean,
-      created: now,
-      updated: now,
+      messages: clean, created: now, updated: now,
     };
     chat.title = chatSummary(chat).title;
     chats.push(chat);
@@ -152,42 +145,35 @@ app.delete('/api/chats/:id', (req, res) => {
 });
 
 /* ---- Tutor (Groq) ---- */
-const TUTOR_PROMPT = 'You are AI Tutor, a warm expert teacher. Help the student learn instead of only giving an answer. Identify the subject, explain the reasoning in clear steps, call out common mistakes, and end with one short practice question. Use Markdown. Student request: ';
+const TUTOR_PROMPT = `You are AI Tutor, a friendly homework helper. Rules:
+1. Give the ANSWER first, clearly and simply.
+2. Then show HOW to solve it step by step, using plain text. Write fractions like 1/2, exponents like x^2, square roots like sqrt(9), multiplication like x * y.
+3. Use numbered steps. Keep it short and clear.
+4. If the problem is simple, just give the answer and a one-line explanation.
+5. At the end, add a "Practice" section with one similar problem.
+6. Do NOT use LaTeX, dollar signs, double-dollar math blocks, backslash commands, or any special math formatting. Keep everything as readable plain text with basic markdown (bold, numbered lists, headers).
+
+Student request: `;
 
 app.post('/api/tutor', async (req, res) => {
   try {
     const { prompt, image, history, subject } = req.body ?? {};
     const cleanPrompt = typeof prompt === 'string' ? prompt.trim() : '';
+    if (!cleanPrompt && !image) return res.status(400).json({ error: 'Add a question or upload a homework image first.' });
+    if (!groq) return res.status(503).json({ error: 'Groq is not configured yet. Add GROQ_API_KEY in your environment.' });
 
-    if (!cleanPrompt && !image) {
-      return res.status(400).json({ error: 'Add a question or upload a homework image first.' });
-    }
-    if (!groq) {
-      return res.status(503).json({ error: 'Groq is not configured yet. Add GROQ_API_KEY in your environment.' });
-    }
-
-    const systemText = TUTOR_PROMPT
-      + (cleanPrompt || 'Please read and explain the attached homework image.')
-      + (subject ? ` The student is focusing on ${subject}.` : '');
-
-    const userContent = [{ type: 'text', text: systemText }];
+    const subjectHint = subject ? ` The student is focusing on ${subject}.` : '';
+    const userContent = [{ type: 'text', text: TUTOR_PROMPT + (cleanPrompt || 'Please read and explain the attached homework image.') + subjectHint }];
     if (typeof image === 'string' && image.startsWith('data:image/')) {
       userContent.push({ type: 'image_url', image_url: { url: image } });
     }
 
     const messages = Array.isArray(history)
-      ? history.slice(-6)
-          .filter((t) => t && ['user', 'assistant'].includes(t.role) && typeof t.content === 'string')
-          .map((t) => ({ role: t.role, content: t.content }))
+      ? history.slice(-6).filter((t) => t && ['user', 'assistant'].includes(t.role) && typeof t.content === 'string').map((t) => ({ role: t.role, content: t.content }))
       : [];
     messages.push({ role: 'user', content: userContent });
 
-    const completion = await groq.chat.completions.create({
-      model: GROQ_MODEL,
-      messages,
-      temperature: 0.35,
-      max_tokens: 1200,
-    });
+    const completion = await groq.chat.completions.create({ model: GROQ_MODEL, messages, temperature: 0.35, max_tokens: 800 });
     const answer = completion.choices[0]?.message?.content;
     return res.json({ answer: typeof answer === 'string' ? answer : 'I could not create an explanation this time.' });
   } catch (error) {
@@ -197,30 +183,25 @@ app.post('/api/tutor', async (req, res) => {
   }
 });
 
-/* ---- Express error middleware (catches everything) ---- */
+/* ---- Express error middleware ---- */
 app.use((err, _req, res, _next) => {
   console.error('Express error:', err);
-  if (!res.headersSent) {
-    res.status(500).json({ error: 'Server error. Please try again.' });
-  }
+  if (!res.headersSent) res.status(500).json({ error: 'Server error. Please try again.' });
 });
 
 /* ---- Static files & SPA fallback ---- */
 const distPath = path.join(__dirname, 'dist');
 app.use(express.static(distPath));
-app.get('*', (_req, res) => {
-  res.sendFile(path.join(distPath, 'index.html'));
-});
+app.get('*', (_req, res) => res.sendFile(path.join(distPath, 'index.html')));
 
+/* ---- Start server ---- */
 const server = app.listen(port, '0.0.0.0', () => {
   console.log(`AI Tutor API listening on 0.0.0.0:${port}`);
 });
 
-/* Keep connections alive through the proxy */
 server.keepAliveTimeout = 65_000;
 server.headersTimeout = 70_000;
 
-/* Self-ping every 30s to prevent idle process cleanup */
 setInterval(() => {
   http.get(`http://localhost:${port}/api/health`, () => {}).on('error', () => {});
 }, 30_000);

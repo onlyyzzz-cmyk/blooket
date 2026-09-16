@@ -1,21 +1,22 @@
-import { ChangeEvent, FormEvent, useMemo, useRef, useState } from 'react';
-import { askTutor, errorMessage, Subject } from './api';
+import { ChangeEvent, FormEvent, useRef, useState } from 'react';
+import { errorMessage, Subject } from './api';
 
-const subjects: { label: Exclude<Subject, 'All'>; icon: string; color: string }[] = [
-  { label: 'Math', icon: '∑', color: 'lavender' },
-  { label: 'English', icon: 'Aa', color: 'peach' },
-  { label: 'Science', icon: '✦', color: 'mint' },
-  { label: 'History', icon: '◷', color: 'butter' },
+const subjects: { label: Exclude<Subject, 'All'>; icon: string }[] = [
+  { label: 'Math', icon: '∑' },
+  { label: 'English', icon: 'Aa' },
+  { label: 'Science', icon: '⚗' },
+  { label: 'History', icon: '🏛' },
 ];
 
-function App() {
+export default function App() {
   const [prompt, setPrompt] = useState('');
   const [image, setImage] = useState<string>();
   const [imageName, setImageName] = useState('');
-  const [activeSubject, setActiveSubject] = useState<Subject>('All');
+  const [activeSubject, setActiveSubject] = useState<Exclude<Subject, 'All'>>('Math');
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState('');
   const fileInput = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const handleImage = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -27,18 +28,16 @@ function App() {
     reader.readAsDataURL(file);
   };
 
-  // Stash the question in sessionStorage, then move to the chats page where
-  // the conversation lives. The chats page picks it up on load.
   const goChat = (event: FormEvent) => {
     event.preventDefault();
     const cleanPrompt = prompt.trim();
-    if (!cleanPrompt && !image) { setError('Write a question or add a photo to get started.'); return; }
-    setIsSending(true); setError('');
+    if (!cleanPrompt && !image) { setError('Type a question or add a photo.'); return; }
+    setIsSending(true);
     try {
       sessionStorage.setItem('ai-tutor-pending', JSON.stringify({
         prompt: cleanPrompt,
         image,
-        subject: activeSubject === 'All' ? 'Math' : activeSubject,
+        subject: activeSubject,
       }));
       window.location.href = '/chats.html';
     } catch {
@@ -47,38 +46,106 @@ function App() {
     }
   };
 
-  const workspaceNote = useMemo(() => activeSubject === 'All' ? '' : `Focusing on ${activeSubject}`, [activeSubject]);
+  return (
+    <div className="landing">
+      {/* Header */}
+      <header className="landing-header">
+        <a href="/" className="landing-logo">
+          <span className="logo-icon">✦</span>
+          <span className="logo-text">AITutor</span>
+        </a>
+        <a href="/chats.html" className="header-chats-link">My Chats</a>
+      </header>
 
-  return <div className="app-shell">
-    <aside className="sidebar">
-      <div className="brand"><div className="brand-mark">✦</div><span>ai tutor</span></div>
-      <a className="new-session" href="/chats.html" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center' }}><span>＋</span> New session</a>
-      <nav className="nav-list" aria-label="Main navigation">
-        <button className="nav-item active"><span>⌂</span> Home</button>
-        <a className="nav-item" href="/chats.html"><span>↺</span> Chats</a>
-      </nav>
-      <div className="sidebar-bottom"><div className="tip-card"><span className="tip-icon">✺</span><strong>Small steps,<br />big progress.</strong><p>Ask follow-ups whenever you need.</p></div><div className="profile"><div className="avatar">JD</div><div><strong>Jordan Davis</strong><span>Free plan</span></div><button>•••</button></div></div>
-    </aside>
-
-    <main className="main-content">
-      <header className="topbar"><div className="breadcrumb">Workspace <span>/</span> <strong>Home</strong></div><div className="top-actions"><button className="icon-button" aria-label="Notifications">♧<i /></button><button className="help-button">?</button></div></header>
-      <section className="hero"><div><p className="eyebrow">GOOD MORNING, JORDAN <span>✦</span></p><h1>What are you curious<br /><em>about today?</em></h1><p className="hero-copy">Your personal study space for clearer thinking,<br />better questions, and real progress.</p></div><div className="hero-art"><div className="sun">✦</div><div className="paper paper-one">∑</div><div className="paper paper-two">Aa</div><div className="orbit" /></div></section>
-
-      <section className="workspace-grid">
-        <div className="ask-card"><div className="card-heading"><div><span className="section-kicker">YOUR STUDY SPACE{workspaceNote ? ` — ${workspaceNote.toUpperCase()}` : ''}</span><h2>Ask anything.</h2></div><span className="sparkle">✧</span></div>
-          <form onSubmit={goChat}><textarea value={prompt} onChange={(event) => setPrompt(event.target.value)} placeholder="Explain a concept, solve a problem, or help me understand..." rows={4} />
-            {image && <div className="image-preview"><img src={image} alt="Homework preview" /><span>{imageName}</span><button type="button" onClick={() => { setImage(undefined); setImageName(''); }}>×</button></div>}
-            <div className="composer-footer"><div className="composer-tools"><input ref={fileInput} type="file" accept="image/*" onChange={handleImage} hidden /><button type="button" className="attach-button" onClick={() => fileInput.current?.click()}>⌇ <span>Add photo</span></button><span className="hint">PNG, JPG up to 5MB</span></div><button className="ask-button" disabled={isSending}>{isSending ? <><span className="loader" /> Starting chat...</> : <>Chat with tutor <span>→</span></>}</button></div>
-          </form>
-          {error && <p className="error-message">{error}</p>}
-          <p className="composer-note">Your question opens a live chat where the tutor explains step by step.</p>
-        </div>
-        <div className="subject-card"><div className="card-heading"><div><span className="section-kicker">EXPLORE BY SUBJECT</span><h2>Pick a lane.</h2></div><span className="tiny-arrow">↗</span></div><div className="subject-list">{subjects.map((subject) => <button className="subject-row" key={subject.label} onClick={() => { setActiveSubject(subject.label); setPrompt(`Help me with ${subject.label.toLowerCase()}: `); document.querySelector('textarea')?.focus(); }}><span className={`subject-icon ${subject.color}`}>{subject.icon}</span><span>{subject.label}</span><b>→</b></button>)}</div><p className="subject-note">Switch subjects anytime.<br />Your curiosity sets the pace.</p></div>
+      {/* Hero */}
+      <section className="landing-hero">
+        <h1>
+          Your AI Homework Helper
+        </h1>
+        <p className="landing-subtitle">
+          Snap a photo or type your question. Get clear, step-by-step answers in seconds.
+        </p>
       </section>
 
-      <footer><span>Made for curious minds.</span><span>AI Tutor <b>✦</b> 2026</span></footer>
-    </main>
-  </div>;
-}
+      {/* Subject chips */}
+      <div className="subject-chips">
+        {subjects.map((s) => (
+          <button
+            key={s.label}
+            className={`chip ${activeSubject === s.label ? 'active' : ''}`}
+            onClick={() => { setActiveSubject(s.label); textareaRef.current?.focus(); }}
+          >
+            <span className="chip-icon">{s.icon}</span>
+            {s.label}
+          </button>
+        ))}
+      </div>
 
-export default App;
+      {/* Main input card */}
+      <form className="input-card" onSubmit={goChat}>
+        <div className="input-card-inner">
+          {image && (
+            <div className="image-preview-bar">
+              <img src={image} alt="Uploaded" className="image-thumb" />
+              <span className="image-name">{imageName}</span>
+              <button type="button" className="image-remove" onClick={() => { setImage(undefined); setImageName(''); }}>✕</button>
+            </div>
+          )}
+          <textarea
+            ref={textareaRef}
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder="Ask anything... e.g. Solve for x: 2x + 5 = 15"
+            rows={3}
+            className="input-textarea"
+          />
+          <div className="input-actions">
+            <div className="input-tools">
+              <input ref={fileInput} type="file" accept="image/*" onChange={handleImage} hidden />
+              <button type="button" className="tool-btn" onClick={() => fileInput.current?.click()} title="Upload a photo">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                  <circle cx="8.5" cy="8.5" r="1.5"/>
+                  <polyline points="21 15 16 10 5 21"/>
+                </svg>
+              </button>
+              <span className="tool-hint">Photo or text</span>
+            </div>
+            <button type="submit" className="send-btn" disabled={isSending}>
+              {isSending ? (
+                <><span className="btn-loader" /> Thinking...</>
+              ) : (
+                <>Solve <span className="btn-arrow">→</span></>
+              )}
+            </button>
+          </div>
+        </div>
+        {error && <p className="input-error">{error}</p>}
+      </form>
+
+      {/* Features */}
+      <section className="features">
+        <div className="feature">
+          <div className="feature-icon">📸</div>
+          <h3>Photo Input</h3>
+          <p>Snap a picture of any homework problem and get instant help.</p>
+        </div>
+        <div className="feature">
+          <div className="feature-icon">📝</div>
+          <h3>Step by Step</h3>
+          <p>Clear explanations with the answer first, then how to solve it.</p>
+        </div>
+        <div className="feature">
+          <div className="feature-icon">🎓</div>
+          <h3>All Subjects</h3>
+          <p>Math, English, Science, History — one tutor for everything.</p>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="landing-footer">
+        <span>AITutor — Learn anything, faster.</span>
+      </footer>
+    </div>
+  );
+}
