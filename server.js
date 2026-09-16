@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 dotenv.config({ path: '.env.local' });
 dotenv.config();
 import express from 'express';
+import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -211,6 +212,15 @@ app.get('*', (_req, res) => {
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
-app.listen(port, '0.0.0.0', () => {
+const server = app.listen(port, '0.0.0.0', () => {
   console.log(`AI Tutor API listening on 0.0.0.0:${port}`);
 });
+
+/* Keep connections alive through the proxy */
+server.keepAliveTimeout = 65_000;
+server.headersTimeout = 70_000;
+
+/* Self-ping every 30s to prevent idle process cleanup */
+setInterval(() => {
+  http.get(`http://localhost:${port}/api/health`, () => {}).on('error', () => {});
+}, 30_000);

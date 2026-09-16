@@ -4,11 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently -k \"node server.js\" \"vite --host 0.0.0.0 --port ${PORT:-3000} --strictPort\"",
-    "start": "concurrently -k \"node server.js\" \"vite --host 0.0.0.0 --port ${PORT:-3000} --strictPort\"",
+    "dev": "npm run build && node server.js",
+    "start": "npm run build && node server.js",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
-    "preview": "vite preview --host 0.0.0.0"
+    "preview": "node server.js"
   },
   "dependencies": {
     "dotenv": "^16.4.7",

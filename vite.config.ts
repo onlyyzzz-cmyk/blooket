@@ -5,9 +5,22 @@ import { resolve } from 'node:path';
 const port = Number(process.env.PORT) || 3000;
 const apiPort = Number(process.env.API_PORT) || 8787;
 
+/** Strip the crossorigin attribute that Vite adds to <script> and <link> tags —
+ *  it causes CORS preflight requests through the Freebuff proxy. */
+function stripCrossorigin() {
+  return {
+    name: 'strip-crossorigin',
+    enforce: 'post' as const,
+    transformIndexHtml(html) {
+      return html.replace(/\bcrossorigin\b\s*/g, '');
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), stripCrossorigin()],
   build: {
+    modulePreload: false,
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
