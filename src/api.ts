@@ -1,4 +1,4 @@
-export type Subject = 'All' | 'Math' | 'English' | 'Science' | 'History';
+export type Subject = 'All' | 'Math' | 'English' | 'Science' | 'History' | 'General';
 
 export type Turn = { role: 'user' | 'assistant'; content: string };
 

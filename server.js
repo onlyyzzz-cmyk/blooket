@@ -25,7 +25,7 @@ const groq = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_
 const dataDir = process.env.DATA_DIR || path.join(__dirname, 'api', 'data');
 try { fs.mkdirSync(dataDir, { recursive: true }); } catch { /* ignore */ }
 const chatsFile = path.join(dataDir, 'chats.json');
-const VALID_SUBJECTS = ['Math', 'English', 'Science', 'History'];
+const VALID_SUBJECTS = ['Math', 'English', 'Science', 'History', 'General'];
 const GROQ_MODEL = 'qwen/qwen3.8-27b';
 
 app.use(express.json({ limit: '8mb' }));

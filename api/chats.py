@@ -10,7 +10,7 @@ import time
 import uuid
 from common import cors_headers, json_response, read_json_body
 
-VALID_SUBJECTS = ("Math", "English", "Science", "History")
+VALID_SUBJECTS = ("Math", "English", "Science", "History", "General")
 
 
 def _store_path():

@@ -6,14 +6,44 @@ import {
 } from './api';
 import './styles.css';
 
-const subjects: { label: Exclude<Subject, 'All'>; icon: string }[] = [
-  { label: 'Math', icon: '∑' },
-  { label: 'English', icon: 'Aa' },
-  { label: 'Science', icon: '⚗' },
-  { label: 'History', icon: '🏛' },
+const subjects: { label: Exclude<Subject, 'All'>; icon: string; color: string }[] = [
+  { label: 'Math', icon: 'math', color: '#6366f1' },
+  { label: 'English', icon: 'english', color: '#f59e0b' },
+  { label: 'Science', icon: 'science', color: '#10b981' },
+  { label: 'History', icon: 'history', color: '#ef4444' },
+  { label: 'General', icon: 'general', color: '#8b5cf6' },
 ];
 
-/** Simple markdown-to-HTML for bold, italic, headers, lists, code */
+function SubjectIcon({ name, size = 16 }: { name: string; size?: number }) {
+  const s = size;
+  if (name === 'math') return (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>
+    </svg>
+  );
+  if (name === 'english') return (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/>
+    </svg>
+  );
+  if (name === 'science') return (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 3h6"/><path d="M10 3v7.4a2 2 0 0 1-.6 1.4L5 15.2V17h14v-1.8l-4.4-3.4a2 2 0 0 1-.6-1.4V3"/>
+      <path d="M7 17l2 4"/><path d="M17 17l-2 4"/>
+    </svg>
+  );
+  if (name === 'history') return (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+    </svg>
+  );
+  return (
+    <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+    </svg>
+  );
+}
+
 function renderMarkdown(text: string): string {
   let html = text
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -34,7 +64,7 @@ function ChatsApp() {
   const [chats, setChats] = useState<ChatSummary[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [turns, setTurns] = useState<Turn[]>([]);
-  const [activeSubject, setActiveSubject] = useState<Exclude<Subject, 'All'>>('Math');
+  const [activeSubject, setActiveSubject] = useState<Exclude<Subject, 'All'>>('General');
   const [prompt, setPrompt] = useState('');
   const [image, setImage] = useState<string>();
   const [imageName, setImageName] = useState('');
@@ -140,7 +170,6 @@ function ChatsApp() {
 
   return (
     <div className="chat-layout">
-      {/* Sidebar */}
       <aside className="chat-sidebar">
         <div className="sidebar-top">
           <a href="/" className="sidebar-logo">
@@ -153,7 +182,7 @@ function ChatsApp() {
           </button>
         </div>
         <div className="sidebar-chats">
-          {chats.length === 0 && <p className="empty-chats">No chats yet. Ask a question to get started.</p>}
+          {chats.length === 0 && <p className="empty-chats">No chats yet.</p>}
           {chats.map((chat) => (
             <div key={chat.id} className={`chat-item ${chat.id === activeId ? 'active' : ''}`}>
               <button className="chat-item-btn" onClick={() => openSession(chat.id)}>
@@ -166,17 +195,14 @@ function ChatsApp() {
         </div>
       </aside>
 
-      {/* Main */}
       <main className="chat-main">
         <div className="chat-header">
-          <div className="chat-header-left">
-            <h2>{activeChat ? activeChat.title : 'New Chat'}</h2>
-          </div>
+          <h2>{activeChat ? activeChat.title : 'New Chat'}</h2>
           <div className="subject-chips small">
             {subjects.map((s) => (
               <button key={s.label} className={`chip ${activeSubject === s.label ? 'active' : ''}`}
                 onClick={() => setActiveSubject(s.label)}>
-                <span className="chip-icon">{s.icon}</span>{s.label}
+                <SubjectIcon name={s.icon} size={12} />{s.label}
               </button>
             ))}
           </div>
@@ -187,7 +213,7 @@ function ChatsApp() {
             <div className="chat-empty-state">
               <div className="empty-icon">✦</div>
               <h3>Ask me anything</h3>
-              <p>Math, English, Science, or History — I'll break it down step by step.</p>
+              <p>Math, English, Science, History, or General — I'll break it down step by step.</p>
             </div>
           )}
 
@@ -221,9 +247,7 @@ function ChatsApp() {
             <input ref={fileInput} type="file" accept="image/*" onChange={handleImage} hidden />
             <button type="button" className="input-bar-tool" onClick={() => fileInput.current?.click()} title="Upload photo">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                <circle cx="8.5" cy="8.5" r="1.5"/>
-                <polyline points="21 15 16 10 5 21"/>
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
               </svg>
             </button>
             <textarea
