@@ -12,7 +12,7 @@ app.use(express.json({ limit: '2mb' }));
 app.use(express.static(__dirname));
 
 // ─────────────────────────────────────────────
-// RATE LIMITER (no external deps, in-memory)
+// RATE LIMITER
 // ─────────────────────────────────────────────
 const rateLimitStore = new Map();
 
@@ -49,17 +49,14 @@ function rateLimit({ windowMs = 60000, max = 10, message = 'Too many requests. S
   };
 }
 
-// global: 30 req/min per IP
 app.use('/api/', rateLimit({ windowMs: 60000, max: 30 }));
 
-// stricter on lookup: 5 req/min per IP
 const lookupLimiter = rateLimit({
   windowMs: 60000,
   max: 5,
   message: 'Lookup rate limit exceeded. Wait a minute.',
 });
 
-// cleanup stale entries every 5 min
 setInterval(() => {
   const now = Date.now();
   for (const [key, val] of rateLimitStore) {
@@ -68,7 +65,7 @@ setInterval(() => {
 }, 300000);
 
 // ─────────────────────────────────────────────
-// BROWSER HEADERS (mimic real Chrome client)
+// BROWSER HEADERS
 // ─────────────────────────────────────────────
 const BROWSER_HEADERS = {
   'Accept': 'application/json, text/plain, */*',
@@ -85,6 +82,104 @@ const BROWSER_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
 };
 
+// ─────────────────────────────────────────────
+// PUPPETEER BROWSER (lazy singleton)
+// ─────────────────────────────────────────────
+let browserInstance = null;
+
+async function getBrowser() {
+  if (browserInstance?.connected) return browserInstance;
+
+  const puppeteer = require('puppeteer');
+
+  browserInstance = await puppeteer.launch({
+    headless: 'new',
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-accelerated-2d-canvas',
+      '--no-first-run',
+      '--no-zygote',
+      '--disable-gpu',
+      '--window-size=1920,1080',
+      '--disable-blink-features=AutomationControlled',
+    ],
+    ignoreDefaultArgs: ['--enable-automation'],
+    defaultViewport: { width: 1920, height: 1080 },
+  });
+
+  await browserInstance.evaluateOnNewDocument(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => false });
+    window.chrome = { runtime: {} };
+    Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+    Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+  });
+
+  console.log('[puppeteer] browser launched');
+
+  browserInstance.on('disconnected', () => {
+    console.log('[puppeteer] browser disconnected');
+    browserInstance = null;
+  });
+
+  return browserInstance;
+}
+
+process.on('SIGINT', async () => {
+  if (browserInstance) await browserInstance.close();
+  process.exit(0);
+});
+
+// ─────────────────────────────────────────────
+// PUPPETEER LOOKUP
+// ─────────────────────────────────────────────
+async function lookupWithPuppeteer(setId) {
+  const browser = await getBrowser();
+  const page = await browser.newPage();
+
+  await page.setRequestInterception(true);
+  page.on('request', (req) => {
+    if (['image', 'media', 'font'].includes(req.resourceType())) {
+      req.abort();
+    } else {
+      req.continue();
+    }
+  });
+
+  try {
+    await page.goto('https://play.blooket.com/', {
+      waitUntil: 'networkidle2',
+      timeout: 30000,
+    });
+
+    const title = await page.title();
+    if (/just a moment|attention required|cloudflare/i.test(title)) {
+      console.log('[puppeteer] challenge detected, waiting...');
+      await page.waitForFunction(
+        () => !/just a moment|attention required|cloudflare/i.test(document.title),
+        { timeout: 20000 },
+      );
+    }
+
+    const gameData = await page.evaluate(async (id) => {
+      const res = await fetch(`https://play.blooket.com/api/gamequestionsets?gameId=${id}`, {
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    }, setId);
+
+    return gameData;
+  } finally {
+    await page.close();
+  }
+}
+
+// ─────────────────────────────────────────────
+// DIRECT FETCH
+// ─────────────────────────────────────────────
 function getBlooketUrl(setId) {
   const value = String(setId || '').trim();
   if (!value) throw new Error('A Set ID is required.');
@@ -107,10 +202,9 @@ function getBlooketUrl(setId) {
   return new URL(`${baseUrl.replace(/\/$/, '')}${value}`);
 }
 
-async function lookupBlooketAnswers(setId) {
+async function lookupDirect(setId) {
   const url = getBlooketUrl(setId);
 
-  console.log(`Fetching answers for Set ID: ${setId}...\n`);
   const response = await fetch(url, {
     headers: {
       ...BROWSER_HEADERS,
@@ -122,28 +216,36 @@ async function lookupBlooketAnswers(setId) {
   if (!response.ok) {
     const body = await response.text();
     if (response.status === 403 && /cloudflare|just a moment|attention required/i.test(body)) {
-      throw new Error(
-        'Blooket blocked this server request with Cloudflare (HTTP 403). ' +
-        'The set endpoint requires an approved browser session; this is not a valid Set ID error.',
-      );
+      const err = new Error('Cloudflare 403 — escalating to browser');
+      err.escalate = true;
+      throw err;
     }
     throw new Error(`Blooket returned HTTP ${response.status}.`);
   }
 
-  let gameData;
-  try {
-    gameData = await response.json();
-  } catch {
-    throw new Error('Blooket returned an invalid JSON response.');
-  }
-
-  if (!Array.isArray(gameData.questions) || gameData.questions.length === 0) {
-    throw new Error('No questions found for this Set ID.');
-  }
-
-  return gameData;
+  return response.json();
 }
 
+async function lookupBlooketAnswers(setId) {
+  console.log(`[lookup] Set ID: ${setId}`);
+
+  try {
+    const data = await lookupDirect(setId);
+    console.log('[lookup] direct fetch success');
+    return data;
+  } catch (err) {
+    if (!err.escalate) throw err;
+    console.log('[lookup] direct blocked, launching browser...');
+  }
+
+  const data = await lookupWithPuppeteer(setId);
+  console.log('[lookup] puppeteer fetch success');
+  return data;
+}
+
+// ─────────────────────────────────────────────
+// NORMALIZATION
+// ─────────────────────────────────────────────
 function normalizeAnswers(gameData) {
   if (gameData.answers && typeof gameData.answers === 'object') {
     return gameData.answers;
@@ -208,11 +310,14 @@ async function handleLookup(setId, res) {
 
     res.json(result);
   } catch (error) {
-    console.error(error);
+    console.error('[lookup error]', error.message);
     res.status(400).json({ error: error.message || 'Lookup failed.' });
   }
 }
 
+// ─────────────────────────────────────────────
+// ROUTES
+// ─────────────────────────────────────────────
 app.post('/api/lookup', lookupLimiter, (req, res) => {
   const setId = req.body && (req.body.setId || req.body.gameId);
   return handleLookup(setId, res);
@@ -222,6 +327,14 @@ app.get('/api/lookup/:setId', lookupLimiter, (req, res) => {
   return handleLookup(req.params.setId, res);
 });
 
+app.get('/api/health', async (req, res) => {
+  res.json({
+    ok: true,
+    browser: browserInstance?.connected ? 'ready' : 'not launched (will start on demand)',
+    rateLimitStore: rateLimitStore.size,
+  });
+});
+
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
@@ -229,7 +342,8 @@ app.get('*', (req, res) => {
 if (require.main === module) {
   app.listen(port, '0.0.0.0', () => {
     console.log(`Blooket lookup server listening on port ${port}`);
+    console.log(`Health check: http://localhost:${port}/api/health`);
   });
 }
 
-module.exports = { app, getBlooketUrl, lookupBlooketAnswers, rateLimit };
+module.exports = { app, getBlooketUrl, lookupBlooketAnswers, rateLimit, lookupWithPuppeteer };
