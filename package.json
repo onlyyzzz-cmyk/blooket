@@ -1,11 +1,30 @@
 {
-  "name": "blooket-lookup",
-  "version": "1.1.0",
-  "main": "server.js",
-  "scripts": { "start": "node server.js" },
+  "name": "ai-tutor",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k \"node server.js\" \"vite --host 0.0.0.0 --port ${PORT:-3000} --strictPort\"",
+    "start": "concurrently -k \"node server.js\" \"vite --host 0.0.0.0 --port ${PORT:-3000} --strictPort\"",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview --host 0.0.0.0"
+  },
   "dependencies": {
-    "express": "^4.19.2",
-    "cors": "^2.8.5",
-    "puppeteer": "^22.0.0"
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "groq-sdk": "^0.15.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "vite": "^6.0.7",
+    "@vitejs/plugin-react": "^4.3.4"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.5",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "concurrently": "^9.1.2",
+    "typescript": "^5.7.2"
   }
 }
