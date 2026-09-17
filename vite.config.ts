@@ -1,5 +1,4 @@
 import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
 import { resolve } from 'node:path';
 
 const port = Number(process.env.PORT) || 3000;
@@ -18,7 +17,7 @@ function stripCrossorigin() {
 }
 
 export default defineConfig({
-  plugins: [react(), stripCrossorigin()],
+  plugins: [stripCrossorigin()],
   build: {
     modulePreload: false,
     rollupOptions: {

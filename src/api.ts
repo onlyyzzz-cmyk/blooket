@@ -20,10 +20,28 @@ export type AiModel = {
   supportsImages: boolean;
 };
 
+export const DEFAULT_MODELS: AiModel[] = [
+  { id: 'qwen/qwen3.8-27b', name: 'Qwen 3.8 27B', provider: 'Alibaba', tier: 'balanced', supportsImages: true },
+  { id: 'openai/gpt-oss-120b', name: 'GPT OSS 120B', provider: 'OpenAI', tier: 'powerful', supportsImages: false },
+  { id: 'openai/gpt-oss-20b', name: 'GPT OSS 20B', provider: 'OpenAI', tier: 'fast', supportsImages: false },
+  { id: 'groq/compound', name: 'Compound', provider: 'Groq', tier: 'powerful', supportsImages: false },
+  { id: 'groq/compound-mini', name: 'Compound Mini', provider: 'Groq', tier: 'fast', supportsImages: false },
+];
+
+const configuredApiUrl = (import.meta.env.VITE_API_URL || '').trim().replace(/\/$/, '');
+
+function apiPath(path: string): string {
+  return configuredApiUrl ? `${configuredApiUrl}${path}` : path;
+}
+
 /** Read a JSON body defensively — never throws on HTML/empty/error bodies. */
 export async function readJson(response: Response): Promise<Record<string, unknown>> {
   const text = await response.text();
-  if (!text) return {};
+  return parseJsonText(text);
+}
+
+function parseJsonText(text: string): Record<string, unknown> {
+  if (!text.trim()) return {};
   try {
     const parsed = JSON.parse(text);
     return parsed && typeof parsed === 'object' ? parsed : {};
@@ -35,12 +53,12 @@ export async function readJson(response: Response): Promise<Record<string, unkno
 /** Check if a response body looks like HTML (server down, SPA catch-all, 502 proxy). */
 function isHtmlResponse(body: string): boolean {
   const trimmed = body.trim().toLowerCase();
-  return trimmed.startsWith('<!doctype') || trimmed.startsWith('<html');
+  return trimmed.startsWith('<!doctype') || trimmed.startsWith('<html') || trimmed.includes('<body');
 }
 
 /** Extract a human-readable error message; never returns 'undefined'. */
 export function errorMessage(data: Record<string, unknown>, fallback = 'Something went wrong. Please try again.'): string {
-  const raw = data.error;
+  const raw = data.error ?? data.message;
   if (typeof raw === 'string' && raw.trim()) return raw.trim();
   return fallback;
 }
@@ -56,8 +74,8 @@ export function formatDate(unix: number): string {
 
 export async function listChats(): Promise<ChatSummary[]> {
   try {
-    const response = await fetch('/api/chats');
-    if (!response.ok) return [];
+    const response = await fetch(apiPath('/api/chats'), { headers: { Accept: 'application/json' } });
+    if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) return [];
     const data = await readJson(response);
     return Array.isArray(data.chats) ? (data.chats as ChatSummary[]) : [];
   } catch { return []; }
@@ -65,7 +83,7 @@ export async function listChats(): Promise<ChatSummary[]> {
 
 export async function getChat(id: string): Promise<ChatDetail | null> {
   try {
-    const response = await fetch(`/api/chats/${encodeURIComponent(id)}`);
+    const response = await fetch(apiPath(`/api/chats/${encodeURIComponent(id)}`), { headers: { Accept: 'application/json' } });
     if (!response.ok) return null;
     const data = await readJson(response);
     return (data.chat as ChatDetail) || null;
@@ -74,7 +92,7 @@ export async function getChat(id: string): Promise<ChatDetail | null> {
 
 export async function createChat(subject: string, messages: Turn[]): Promise<ChatDetail | null> {
   try {
-    const response = await fetch('/api/chats', {
+    const response = await fetch(apiPath('/api/chats'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ subject, messages }),
@@ -87,7 +105,7 @@ export async function createChat(subject: string, messages: Turn[]): Promise<Cha
 
 export async function appendToChat(id: string, turn: Turn): Promise<void> {
   try {
-    await fetch(`/api/chats/${encodeURIComponent(id)}`, {
+    await fetch(apiPath(`/api/chats/${encodeURIComponent(id)}`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ add: turn }),
@@ -97,17 +115,19 @@ export async function appendToChat(id: string, turn: Turn): Promise<void> {
 
 export async function deleteChat(id: string): Promise<void> {
   try {
-    await fetch(`/api/chats/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    await fetch(apiPath(`/api/chats/${encodeURIComponent(id)}`), { method: 'DELETE', headers: { Accept: 'application/json' } });
   } catch { /* ignore network errors during delete */ }
 }
 
 export async function listModels(): Promise<AiModel[]> {
   try {
-    const response = await fetch('/api/models');
+    const response = await fetch(apiPath('/api/models'), { headers: { Accept: 'application/json' } });
+    const rawText = await response.text();
     if (!response.ok) return [];
-    const data = await readJson(response);
-    return Array.isArray(data.models) ? (data.models as AiModel[]) : [];
-  } catch { return []; }
+    if (isHtmlResponse(rawText)) return [];
+    const data = parseJsonText(rawText);
+    return Array.isArray(data.models) && data.models.length > 0 ? (data.models as AiModel[]) : DEFAULT_MODELS;
+  } catch { return DEFAULT_MODELS; }
 }
 
 export type AskResult = { answer: string } | { error: string };
@@ -120,9 +140,9 @@ export async function askTutor(payload: {
   history?: Turn[];
 }): Promise<AskResult> {
   try {
-    const response = await fetch('/api/tutor', {
+    const response = await fetch(apiPath('/api/tutor'), {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
 
@@ -138,10 +158,14 @@ export async function askTutor(payload: {
       const parsed = JSON.parse(rawText);
       data = parsed && typeof parsed === 'object' ? parsed : {};
     } catch {
-      return { error: 'Could not understand the server response. Please try again.' };
+      const contentType = response.headers.get('content-type') || 'unknown';
+      return { error: `The AI service returned an invalid response (${response.status}, ${contentType}). Check that the Node/Python API is running at the same origin.` };
     }
 
     if (!response.ok) {
+      if (response.status === 405 || response.status === 502 || response.status === 503) {
+        return { error: `The AI API is unavailable right now (${response.status}). Start the Node/Python API on the configured preview port and try again.` };
+      }
       return { error: errorMessage(data, `Server error (${response.status}). Please try again.`) };
     }
 
