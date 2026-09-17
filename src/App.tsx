@@ -1,6 +1,7 @@
 import { ChangeEvent, FormEvent, useRef, useState } from 'react';
 import { errorMessage, Subject } from './api';
 import Calculator from './Calculator';
+import FloatingTutor from './FloatingTutor';
 
 const subjects: { label: Exclude<Subject, 'All'>; icon: string; color: string }[] = [
   { label: 'Math', icon: 'math', color: '#6366f1' },
@@ -33,7 +34,6 @@ function SubjectIcon({ name, size = 18 }: { name: string; size?: number }) {
       <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
     </svg>
   );
-  // general
   return (
     <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
@@ -86,6 +86,8 @@ export default function App() {
 
   return (
     <div className="landing">
+      <FloatingTutor />
+
       <header className="landing-header">
         <a href="/" className="landing-logo">
           <span className="logo-icon">✦</span>
@@ -106,7 +108,7 @@ export default function App() {
         </p>
       </section>
 
-      <div className="subject-chips">
+      <div className="subject-chips stagger-in">
         {subjects.map((s) => (
           <button
             key={s.label}
@@ -176,18 +178,18 @@ export default function App() {
         {error && <p className="input-error">{error}</p>}
       </form>
 
-      <section className="features">
-        <div className="feature">
+      <section className="features stagger-in">
+        <div className="feature hover-3d">
           <div className="feature-icon-wrap"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
           <h3>Camera Input</h3>
           <p>Snap a photo of any homework problem and get instant help.</p>
         </div>
-        <div className="feature">
+        <div className="feature hover-3d">
           <div className="feature-icon-wrap"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><rect x="8" y="6" width="8" height="3" rx="0.5" fill="currentColor" stroke="none"/><line x1="8" y1="13" x2="8.01" y2="13"/><line x1="12" y1="13" x2="12.01" y2="13"/><line x1="16" y1="13" x2="16.01" y2="13"/><line x1="8" y1="17" x2="8.01" y2="17"/><line x1="12" y1="17" x2="12.01" y2="17"/><line x1="16" y1="17" x2="16.01" y2="17"/></svg></div>
-          <h3>Built-in Calculator</h3>
-          <p>Scientific calculator with exponents, roots, trig, and logs for grades 6-12.</p>
+          <h3>Calculator ×2</h3>
+          <p>Scientific calculator + unit converter — exponents, roots, trig, and more.</p>
         </div>
-        <div className="feature">
+        <div className="feature hover-3d">
           <div className="feature-icon-wrap"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 1.66 2.69 3 6 3s6-1.34 6-3v-5"/></svg></div>
           <h3>All Subjects</h3>
           <p>Math, English, Science, History, and General topics — one tutor for everything.</p>

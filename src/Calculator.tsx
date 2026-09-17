@@ -1,9 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-/* Safe math evaluator for grades 6–12.
-   Supports: + - * / ^ ( ) %, sqrt, cbrt, abs, ln, log, exp,
-   sin, cos, tan (radians & deg modes), asin, acos, atan,
-   factorial (!), pi, e, and percent (e.g. 50% = 0.5). */
+/* Safe math evaluator for grades 6–12. */
 
 function factorial(n: number): number {
   if (n < 0 || !Number.isInteger(n)) return NaN;
@@ -37,13 +34,6 @@ function tokenize(src: string): string[] {
   return tokens;
 }
 
-/* Recursive descent parser with precedence:
-   expr -> term (('+'|'-') term)*
-   term -> unary (('*'|'/'|'%') unary)*      % = modulo here
-   unary -> ('-'|'+') unary | power
-   power -> postfix ('^' unary)?             right-assoc
-   postfix -> primary ('!')*
-   primary -> number | const | func '(' args ')' | '(' expr ')' | primary '%'  */
 function makeParser(tokens: string[], deg: boolean) {
   let pos = 0;
   const peek = () => tokens[pos];
@@ -101,7 +91,7 @@ function makeParser(tokens: string[], deg: boolean) {
     const base = parsePostfix();
     if (peek() === '^') {
       next();
-      const exp = parseUnary(); // right-assoc
+      const exp = parseUnary();
       return Math.pow(base, exp);
     }
     return base;
@@ -171,6 +161,126 @@ export function formatNumber(n: number): string {
   return String(parseFloat(n.toPrecision(12)));
 }
 
+/* ---------------- Unit Converter ---------------- */
+
+type UnitCategory = 'length' | 'weight' | 'temperature' | 'volume' | 'speed' | 'area';
+
+const UNIT_DATA: Record<UnitCategory, { label: string; units: Record<string, { label: string; toBase: (v: number) => number; fromBase: (v: number) => number }> }> = {
+  length: {
+    label: '📏 Length',
+    units: {
+      mm: { label: 'Millimeters', toBase: (v) => v / 1000, fromBase: (v) => v * 1000 },
+      cm: { label: 'Centimeters', toBase: (v) => v / 100, fromBase: (v) => v * 100 },
+      m: { label: 'Meters', toBase: (v) => v, fromBase: (v) => v },
+      km: { label: 'Kilometers', toBase: (v) => v * 1000, fromBase: (v) => v / 1000 },
+      in: { label: 'Inches', toBase: (v) => v * 0.0254, fromBase: (v) => v / 0.0254 },
+      ft: { label: 'Feet', toBase: (v) => v * 0.3048, fromBase: (v) => v / 0.3048 },
+      yd: { label: 'Yards', toBase: (v) => v * 0.9144, fromBase: (v) => v / 0.9144 },
+      mi: { label: 'Miles', toBase: (v) => v * 1609.344, fromBase: (v) => v / 1609.344 },
+    },
+  },
+  weight: {
+    label: '⚖️ Weight',
+    units: {
+      mg: { label: 'Milligrams', toBase: (v) => v / 1000000, fromBase: (v) => v * 1000000 },
+      g: { label: 'Grams', toBase: (v) => v / 1000, fromBase: (v) => v * 1000 },
+      kg: { label: 'Kilograms', toBase: (v) => v, fromBase: (v) => v },
+      oz: { label: 'Ounces', toBase: (v) => v * 0.0283495, fromBase: (v) => v / 0.0283495 },
+      lb: { label: 'Pounds', toBase: (v) => v * 0.453592, fromBase: (v) => v / 0.453592 },
+      t: { label: 'Metric Tons', toBase: (v) => v * 1000, fromBase: (v) => v / 1000 },
+    },
+  },
+  temperature: {
+    label: '🌡️ Temperature',
+    units: {
+      C: { label: 'Celsius', toBase: (v) => v, fromBase: (v) => v },
+      F: { label: 'Fahrenheit', toBase: (v) => (v - 32) * 5 / 9, fromBase: (v) => v * 9 / 5 + 32 },
+      K: { label: 'Kelvin', toBase: (v) => v - 273.15, fromBase: (v) => v + 273.15 },
+    },
+  },
+  volume: {
+    label: '🧪 Volume',
+    units: {
+      ml: { label: 'Milliliters', toBase: (v) => v / 1000, fromBase: (v) => v * 1000 },
+      L: { label: 'Liters', toBase: (v) => v, fromBase: (v) => v },
+      gal: { label: 'Gallons (US)', toBase: (v) => v * 3.78541, fromBase: (v) => v / 3.78541 },
+      qt: { label: 'Quarts', toBase: (v) => v * 0.946353, fromBase: (v) => v / 0.946353 },
+      cup: { label: 'Cups', toBase: (v) => v * 0.236588, fromBase: (v) => v / 0.236588 },
+      floz: { label: 'Fluid Ounces', toBase: (v) => v * 0.0295735, fromBase: (v) => v / 0.0295735 },
+    },
+  },
+  speed: {
+    label: '🚀 Speed',
+    units: {
+      ms: { label: 'Meters/sec', toBase: (v) => v, fromBase: (v) => v },
+      kmh: { label: 'Km/hour', toBase: (v) => v / 3.6, fromBase: (v) => v * 3.6 },
+      mph: { label: 'Miles/hour', toBase: (v) => v * 0.44704, fromBase: (v) => v / 0.44704 },
+      kn: { label: 'Knots', toBase: (v) => v * 0.514444, fromBase: (v) => v / 0.514444 },
+    },
+  },
+  area: {
+    label: '📐 Area',
+    units: {
+      mm2: { label: 'sq mm', toBase: (v) => v / 1000000, fromBase: (v) => v * 1000000 },
+      cm2: { label: 'sq cm', toBase: (v) => v / 10000, fromBase: (v) => v * 10000 },
+      m2: { label: 'sq m', toBase: (v) => v, fromBase: (v) => v },
+      km2: { label: 'sq km', toBase: (v) => v * 1000000, fromBase: (v) => v / 1000000 },
+      in2: { label: 'sq in', toBase: (v) => v * 0.00064516, fromBase: (v) => v / 0.00064516 },
+      ft2: { label: 'sq ft', toBase: (v) => v * 0.092903, fromBase: (v) => v / 0.092903 },
+      ac: { label: 'Acres', toBase: (v) => v * 4046.86, fromBase: (v) => v / 4046.86 },
+    },
+  },
+};
+
+function UnitConverter({ onInsert }: { onInsert?: (value: string) => void }) {
+  const [cat, setCat] = useState<UnitCategory>('length');
+  const [fromUnit, setFromUnit] = useState('cm');
+  const [toUnit, setToUnit] = useState('in');
+  const [inputVal, setInputVal] = useState('1');
+  const data = UNIT_DATA[cat];
+  const unitKeys = Object.keys(data.units);
+
+  const numVal = parseFloat(inputVal);
+  let result = '';
+  if (!isNaN(numVal) && unitKeys.includes(fromUnit) && unitKeys.includes(toUnit)) {
+    const base = data.units[fromUnit].toBase(numVal);
+    const converted = data.units[toUnit].fromBase(base);
+    result = formatNumber(converted);
+  }
+
+  const switchUnits = () => { setFromUnit(toUnit); setToUnit(fromUnit); };
+
+  return (
+    <div className="converter">
+      <div className="converter-cats">
+        {(Object.keys(UNIT_DATA) as UnitCategory[]).map((k) => (
+          <button key={k} className={`converter-cat ${cat === k ? 'active' : ''}`} onClick={() => { setCat(k); const uk = Object.keys(UNIT_DATA[k].units); setFromUnit(uk[0]); setToUnit(uk[1] || uk[0]); }}>
+            {UNIT_DATA[k].label}
+          </button>
+        ))}
+      </div>
+      <div className="converter-row">
+        <div className="converter-field">
+          <input type="number" className="converter-input" value={inputVal} onChange={(e) => setInputVal(e.target.value)} placeholder="0" />
+          <select className="converter-select" value={fromUnit} onChange={(e) => setFromUnit(e.target.value)}>
+            {unitKeys.map((u) => <option key={u} value={u}>{data.units[u].label}</option>)}
+          </select>
+        </div>
+        <button className="converter-swap" onClick={switchUnits} title="Swap">⇄</button>
+        <div className="converter-field">
+          <div className="converter-result">{result || '—'}</div>
+          <select className="converter-select" value={toUnit} onChange={(e) => setToUnit(e.target.value)}>
+            {unitKeys.map((u) => <option key={u} value={u}>{data.units[u].label}</option>)}
+          </select>
+        </div>
+      </div>
+      {result && onInsert && (
+        <button className="calc-insert-btn" onClick={() => onInsert(result)}>Insert into message ↓</button>
+      )}
+    </div>
+  );
+}
+
 /* ---------------- UI ---------------- */
 
 const BASIC_KEYS: string[][] = [
@@ -191,6 +301,7 @@ export default function Calculator({ onInsert }: { onInsert?: (value: string) =>
   const [degMode, setDegMode] = useState(true);
   const [showSci, setShowSci] = useState(false);
   const [error, setError] = useState('');
+  const [mode, setMode] = useState<'calc' | 'convert'>('calc');
   const pendingParen = useRef(0);
 
   useEffect(() => { pendingParen.current = 0; }, []);
@@ -212,7 +323,6 @@ export default function Calculator({ onInsert }: { onInsert?: (value: string) =>
       return;
     }
     if (key === '( )') {
-      // Smart paren: open if it reduces balance, otherwise close.
       const opens = (expr.match(/\(/g) || []).length;
       const closes = (expr.match(/\)/g) || []).length;
       const token = opens > closes ? ')' : '(';
@@ -235,56 +345,61 @@ export default function Calculator({ onInsert }: { onInsert?: (value: string) =>
   return (
     <div className="calculator" role="dialog" aria-label="Calculator">
       <div className="calc-header">
-        <span className="calc-title">Calculator</span>
-        <div className="calc-header-actions">
-          <button
-            className={`calc-mode-btn ${degMode ? 'active' : ''}`}
-            onClick={() => setDegMode((d) => !d)}
-            title="Toggle angle mode"
-          >
-            {degMode ? 'DEG' : 'RAD'}
+        <div className="calc-mode-tabs">
+          <button className={`calc-tab ${mode === 'calc' ? 'active' : ''}`} onClick={() => setMode('calc')}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><rect x="8" y="6" width="8" height="3" rx="0.5" fill="currentColor" stroke="none"/><line x1="8" y1="13" x2="8.01" y2="13"/><line x1="12" y1="13" x2="12.01" y2="13"/><line x1="16" y1="13" x2="16.01" y2="13"/><line x1="8" y1="17" x2="8.01" y2="17"/><line x1="12" y1="17" x2="12.01" y2="17"/><line x1="16" y1="17" x2="16.01" y2="17"/></svg>
+            Calc
           </button>
-          <button
-            className={`calc-mode-btn ${showSci ? 'active' : ''}`}
-            onClick={() => setShowSci((s) => !s)}
-            title="Toggle scientific keys"
-          >
-            fx
+          <button className={`calc-tab ${mode === 'convert' ? 'active' : ''}`} onClick={() => setMode('convert')}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+            Convert
           </button>
         </div>
+        {mode === 'calc' && (
+          <div className="calc-header-actions">
+            <button className={`calc-mode-btn ${degMode ? 'active' : ''}`} onClick={() => setDegMode((d) => !d)} title="Toggle angle mode">{degMode ? 'DEG' : 'RAD'}</button>
+            <button className={`calc-mode-btn ${showSci ? 'active' : ''}`} onClick={() => setShowSci((s) => !s)} title="Toggle scientific keys">fx</button>
+          </div>
+        )}
       </div>
 
-      <div className="calc-display">
-        <div className="calc-expr" title={displayExpr}>{displayExpr}</div>
-        <div className={`calc-result ${error ? 'calc-error' : ''}`}>
-          {error ? error : result ? `= ${result}` : '\u00A0'}
-        </div>
-      </div>
+      {mode === 'calc' ? (
+        <>
+          <div className="calc-display">
+            <div className="calc-expr" title={displayExpr}>{displayExpr}</div>
+            <div className={`calc-result ${error ? 'calc-error' : ''}`}>
+              {error ? error : result ? `= ${result}` : '\u00A0'}
+            </div>
+          </div>
 
-      {showSci && (
-        <div className="calc-keys calc-keys-sci">
-          {SCI_KEYS.flat().map((k) => (
-            <button key={k} className="calc-key sci" onClick={() => press(k)}>{k}</button>
-          ))}
-        </div>
-      )}
+          {showSci && (
+            <div className="calc-keys calc-keys-sci">
+              {SCI_KEYS.flat().map((k) => (
+                <button key={k} className="calc-key sci" onClick={() => press(k)}>{k}</button>
+              ))}
+            </div>
+          )}
 
-      <div className="calc-keys">
-        {BASIC_KEYS.flat().map((k) => (
-          <button
-            key={k}
-            className={`calc-key ${k === '=' ? 'equals' : ''} ${'÷×−+'.includes(k) ? 'op' : ''} ${k === 'C' ? 'clear' : ''}`}
-            onClick={() => press(k)}
-          >
-            {k}
-          </button>
-        ))}
-      </div>
+          <div className="calc-keys">
+            {BASIC_KEYS.flat().map((k) => (
+              <button
+                key={k}
+                className={`calc-key ${k === '=' ? 'equals' : ''} ${'÷×−+'.includes(k) ? 'op' : ''} ${k === 'C' ? 'clear' : ''}`}
+                onClick={() => press(k)}
+              >
+                {k}
+              </button>
+            ))}
+          </div>
 
-      {result && onInsert && (
-        <button className="calc-insert-btn" onClick={insertResult} title="Insert into message">
-          Insert into message ↓
-        </button>
+          {result && onInsert && (
+            <button className="calc-insert-btn" onClick={insertResult} title="Insert into message">
+              Insert into message ↓
+            </button>
+          )}
+        </>
+      ) : (
+        <UnitConverter onInsert={onInsert} />
       )}
     </div>
   );

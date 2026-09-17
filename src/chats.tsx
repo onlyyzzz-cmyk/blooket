@@ -6,6 +6,7 @@ import {
   AiModel, Subject, Turn,
 } from './api';
 import Calculator from './Calculator';
+import FloatingTutor from './FloatingTutor';
 import './styles.css';
 
 const subjects: { label: Exclude<Subject, 'All'>; icon: string; color: string }[] = [
@@ -49,17 +50,17 @@ function SubjectIcon({ name, size = 16 }: { name: string; size?: number }) {
 function ModelIcon({ tier }: { tier: string }) {
   if (tier === 'fast') return (
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
     </svg>
   );
   if (tier === 'powerful') return (
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
     </svg>
   );
   return (
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+      <circle cx="12" cy="12" r="3" /><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" />
     </svg>
   );
 }
@@ -225,6 +226,8 @@ function ChatsApp() {
 
   return (
     <div className="chat-layout">
+      <FloatingTutor />
+
       <aside className="chat-sidebar">
         <div className="sidebar-top">
           <a href="/" className="sidebar-logo">
@@ -232,7 +235,7 @@ function ChatsApp() {
             <span className="logo-text">AITutor</span>
           </a>
           <button className="new-chat-btn" onClick={startNewSession}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
             New Chat
           </button>
         </div>
@@ -267,7 +270,7 @@ function ChatsApp() {
               <button className="model-trigger" onClick={() => setShowModelPicker(!showModelPicker)}>
                 <ModelIcon tier={currentModel?.tier || 'balanced'} />
                 <span>{currentModel?.name || 'Qwen 3.8 27B'}</span>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9" /></svg>
               </button>
               {showModelPicker && (
                 <div className="model-dropdown">
@@ -287,7 +290,7 @@ function ChatsApp() {
                         </span>
                       </div>
                       {m.id === selectedModel && (
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
                       )}
                     </button>
                   ))}
@@ -352,21 +355,21 @@ function ChatsApp() {
             <input ref={fileInput} type="file" accept="image/*" capture="environment" onChange={handleImage} hidden />
             <button type="button" className="input-bar-tool" onClick={() => fileInput.current?.click()} title="Take a photo or upload">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                <circle cx="12" cy="13" r="4"/>
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                <circle cx="12" cy="13" r="4" />
               </svg>
             </button>
             <button
               type="button"
               className={`input-bar-tool ${showCalc ? 'calc-active' : ''}`}
-              onClick={() => setShowCalc((s) => !s)}
+              onClick={() => setShowCalc(!showCalc)}
               title="Calculator (grades 6-12)"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="4" y="2" width="16" height="20" rx="2"/>
-                <rect x="8" y="6" width="8" height="3" rx="0.5" fill="currentColor" stroke="none"/>
-                <line x1="8" y1="13" x2="8.01" y2="13"/><line x1="12" y1="13" x2="12.01" y2="13"/><line x1="16" y1="13" x2="16.01" y2="13"/>
-                <line x1="8" y1="17" x2="8.01" y2="17"/><line x1="12" y1="17" x2="12.01" y2="17"/><line x1="16" y1="17" x2="16.01" y2="17"/>
+                <rect x="4" y="2" width="16" height="20" rx="2" />
+                <rect x="8" y="6" width="8" height="3" rx="0.5" fill="currentColor" stroke="none" />
+                <line x1="8" y1="13" x2="8.01" y2="13" /><line x1="12" y1="13" x2="12.01" y2="13" /><line x1="16" y1="13" x2="16.01" y2="13" />
+                <line x1="8" y1="17" x2="8.01" y2="17" /><line x1="12" y1="17" x2="12.01" y2="17" /><line x1="16" y1="17" x2="16.01" y2="17" />
               </svg>
             </button>
             <textarea
@@ -380,7 +383,7 @@ function ChatsApp() {
             />
             <button type="submit" className="input-bar-send" disabled={isLoading || (!prompt.trim() && !image)}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
               </svg>
             </button>
           </div>
