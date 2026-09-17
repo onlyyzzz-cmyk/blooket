@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "npm run build && node server.js",
     "start": "npm run build && node server.js",
-    "build": "npm install && npx vite build",
+    "build": "vite build",
     "typecheck": "tsc --noEmit",
     "preview": "node server.js"
   },
