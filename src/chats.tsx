@@ -2,7 +2,8 @@ import React, { ChangeEvent, FormEvent, useCallback, useEffect, useRef, useState
 import ReactDOM from 'react-dom/client';
 import {
   appendToChat, askTutor, ChatSummary, createChat, deleteChat,
-  errorMessage, formatDate, getChat, listChats, Subject, Turn,
+  errorMessage, formatDate, getChat, listChats, listModels,
+  AiModel, Subject, Turn,
 } from './api';
 import './styles.css';
 
@@ -44,6 +45,24 @@ function SubjectIcon({ name, size = 16 }: { name: string; size?: number }) {
   );
 }
 
+function ModelIcon({ tier }: { tier: string }) {
+  if (tier === 'fast') return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+    </svg>
+  );
+  if (tier === 'powerful') return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+    </svg>
+  );
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+    </svg>
+  );
+}
+
 function renderMarkdown(text: string): string {
   let html = text
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -55,6 +74,7 @@ function renderMarkdown(text: string): string {
     .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
     .replace(/^(\d+)\. (.+)$/gm, '<div class="step"><span class="step-num">$1</span><span>$2</span></div>')
     .replace(/^- (.+)$/gm, '<div class="bullet">• $1</div>')
+    .replace(/^---+$/gm, '<hr style="border:none;border-top:1px solid var(--border);margin:12px 0"/>')
     .replace(/\n\n/g, '<br/><br/>')
     .replace(/\n/g, '<br/>');
   return html;
@@ -70,15 +90,37 @@ function ChatsApp() {
   const [imageName, setImageName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [models, setModels] = useState<AiModel[]>([]);
+  const [selectedModel, setSelectedModel] = useState('google/gemini-2.5-flash');
+  const [showModelPicker, setShowModelPicker] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const modelPickerRef = useRef<HTMLDivElement>(null);
 
   const refreshChats = useCallback(async () => {
     try { setChats(await listChats()); } catch { /* leave list as-is */ }
   }, []);
 
   useEffect(() => { refreshChats(); }, [refreshChats]);
+
+  useEffect(() => {
+    listModels().then((m) => {
+      if (m.length > 0) setModels(m);
+    }).catch(() => {});
+  }, []);
+
+  // Close model picker on outside click
+  useEffect(() => {
+    if (!showModelPicker) return;
+    const handler = (e: MouseEvent) => {
+      if (modelPickerRef.current && !modelPickerRef.current.contains(e.target as Node)) {
+        setShowModelPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showModelPicker]);
 
   useEffect(() => {
     const raw = sessionStorage.getItem('ai-tutor-pending');
@@ -140,7 +182,7 @@ function ChatsApp() {
     setTurns((current) => [...current, userTurn]);
     setPrompt(''); setImage(undefined); setImageName('');
 
-    const result = await askTutor({ prompt: cleanPrompt, image, subject: activeSubject, history });
+    const result = await askTutor({ prompt: cleanPrompt, image, subject: activeSubject, history, model: selectedModel });
 
     if ('error' in result) {
       setError(errorMessage(result, 'Could not connect to the tutor.'));
@@ -167,6 +209,7 @@ function ChatsApp() {
   };
 
   const activeChat = chats.find((c) => c.id === activeId) ?? null;
+  const currentModel = models.find((m) => m.id === selectedModel);
 
   return (
     <div className="chat-layout">
@@ -198,13 +241,44 @@ function ChatsApp() {
       <main className="chat-main">
         <div className="chat-header">
           <h2>{activeChat ? activeChat.title : 'New Chat'}</h2>
-          <div className="subject-chips small">
-            {subjects.map((s) => (
-              <button key={s.label} className={`chip ${activeSubject === s.label ? 'active' : ''}`}
-                onClick={() => setActiveSubject(s.label)}>
-                <SubjectIcon name={s.icon} size={12} />{s.label}
+          <div className="header-right">
+            <div className="subject-chips small">
+              {subjects.map((s) => (
+                <button key={s.label} className={`chip ${activeSubject === s.label ? 'active' : ''}`}
+                  onClick={() => setActiveSubject(s.label)}>
+                  <SubjectIcon name={s.icon} size={12} />{s.label}
+                </button>
+              ))}
+            </div>
+            {/* Model Switcher */}
+            <div className="model-switcher" ref={modelPickerRef}>
+              <button className="model-trigger" onClick={() => setShowModelPicker(!showModelPicker)}>
+                <ModelIcon tier={currentModel?.tier || 'balanced'} />
+                <span>{currentModel?.name || 'Gemini 2.5 Flash'}</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
               </button>
-            ))}
+              {showModelPicker && (
+                <div className="model-dropdown">
+                  <div className="model-dropdown-label">Select Model</div>
+                  {models.map((m) => (
+                    <button
+                      key={m.id}
+                      className={`model-option ${m.id === selectedModel ? 'active' : ''}`}
+                      onClick={() => { setSelectedModel(m.id); setShowModelPicker(false); }}
+                    >
+                      <ModelIcon tier={m.tier} />
+                      <div className="model-option-info">
+                        <span className="model-option-name">{m.name}</span>
+                        <span className="model-option-meta">{m.provider} · {m.tier}</span>
+                      </div>
+                      {m.id === selectedModel && (
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -214,6 +288,12 @@ function ChatsApp() {
               <div className="empty-icon">✦</div>
               <h3>Ask me anything</h3>
               <p>Math, English, Science, History, or General — I'll break it down step by step.</p>
+              <div className="empty-suggestions">
+                <button className="suggestion-chip" onClick={() => { setPrompt('What is 12 divided by 9?'); textareaRef.current?.focus(); }}>12 / 9 = ?</button>
+                <button className="suggestion-chip" onClick={() => { setPrompt('Explain photosynthesis'); textareaRef.current?.focus(); }}>Photosynthesis</button>
+                <button className="suggestion-chip" onClick={() => { setPrompt('How many ways to arrange 5 books?'); textareaRef.current?.focus(); }}>Counting</button>
+                <button className="suggestion-chip" onClick={() => { setPrompt('What caused World War I?'); textareaRef.current?.focus(); }}>WWI causes</button>
+              </div>
             </div>
           )}
 

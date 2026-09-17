@@ -12,6 +12,13 @@ export type ChatSummary = {
 
 export type ChatDetail = ChatSummary & { messages: Turn[] };
 
+export type AiModel = {
+  id: string;
+  name: string;
+  provider: string;
+  tier: 'fast' | 'balanced' | 'powerful';
+};
+
 /** Read a JSON body defensively — never throws on HTML/empty/error bodies. */
 export async function readJson(response: Response): Promise<Record<string, unknown>> {
   const text = await response.text();
@@ -93,12 +100,22 @@ export async function deleteChat(id: string): Promise<void> {
   } catch { /* ignore network errors during delete */ }
 }
 
+export async function listModels(): Promise<AiModel[]> {
+  try {
+    const response = await fetch('/api/models');
+    if (!response.ok) return [];
+    const data = await readJson(response);
+    return Array.isArray(data.models) ? (data.models as AiModel[]) : [];
+  } catch { return []; }
+}
+
 export type AskResult = { answer: string } | { error: string };
 
 export async function askTutor(payload: {
   prompt: string;
   image?: string;
   subject?: string;
+  model?: string;
   history?: Turn[];
 }): Promise<AskResult> {
   try {

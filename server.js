@@ -3,11 +3,11 @@ dotenv.config({ path: '.env.local' });
 dotenv.config();
 import express from 'express';
 import http from 'node:http';
+import https from 'node:https';
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
-import Groq from 'groq-sdk';
 
 /* ---- Crash protection ---- */
 process.on('unhandledRejection', (reason) => {
@@ -19,17 +19,31 @@ process.on('uncaughtException', (err) => {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
-const port = Number(process.env.API_PORT || 8787);
-const groq = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
+const port = Number(process.env.PORT || process.env.API_PORT || 8787);
+
+const REQUESTY_API_URL = 'https://router.requesty.ai/v1/chat/completions';
+const requestyKey = process.env.REQUESTY_API_KEY || '';
 
 const dataDir = process.env.DATA_DIR || path.join(__dirname, 'api', 'data');
 try { fs.mkdirSync(dataDir, { recursive: true }); } catch { /* ignore */ }
 const chatsFile = path.join(dataDir, 'chats.json');
 const VALID_SUBJECTS = ['Math', 'English', 'Science', 'History', 'General'];
-const GROQ_MODEL = 'qwen/qwen3.8-27b';
+
+const AVAILABLE_MODELS = [
+  { id: 'google/gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google', tier: 'fast' },
+  { id: 'google/gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google', tier: 'powerful' },
+  { id: 'openai/gpt-4o', name: 'GPT-4o', provider: 'OpenAI', tier: 'balanced' },
+  { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI', tier: 'fast' },
+  { id: 'anthropic/claude-sonnet-4-20250514', name: 'Claude Sonnet 4', provider: 'Anthropic', tier: 'balanced' },
+  { id: 'deepseek/deepseek-chat', name: 'DeepSeek V3', provider: 'DeepSeek', tier: 'balanced' },
+  { id: 'deepseek/deepseek-r1', name: 'DeepSeek R1', provider: 'DeepSeek', tier: 'powerful' },
+  { id: 'meta-llama/llama-4-maverick-17b-128e-instruct', name: 'Llama 4 Maverick', provider: 'Meta', tier: 'balanced' },
+];
+const DEFAULT_MODEL = 'google/gemini-2.5-flash';
 
 app.use(express.json({ limit: '8mb' }));
 
+/* ---- Chat storage helpers ---- */
 function loadChats() {
   try {
     const raw = fs.readFileSync(chatsFile, 'utf8');
@@ -59,9 +73,62 @@ function chatSummary(chat) {
   };
 }
 
+/* ---- Call Requesty API (OpenAI-compatible) ---- */
+function callRequesty(messages, model = DEFAULT_MODEL) {
+  return new Promise((resolve, reject) => {
+    const payload = JSON.stringify({
+      model,
+      messages,
+      temperature: 0.35,
+      max_tokens: 2000,
+    });
+
+    const url = new URL(REQUESTY_API_URL);
+    const options = {
+      hostname: url.hostname,
+      port: 443,
+      path: url.pathname,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${requestyKey}`,
+        'X-Title': 'AITutor',
+      },
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        try {
+          const result = JSON.parse(data);
+          const answer = result?.choices?.[0]?.message?.content;
+          if (answer) {
+            resolve(answer);
+          } else {
+            reject(new Error(result?.error?.message || 'Empty response from AI'));
+          }
+        } catch (e) {
+          reject(new Error('Failed to parse AI response'));
+        }
+      });
+    });
+
+    req.on('error', reject);
+    req.setTimeout(90000, () => { req.destroy(); reject(new Error('AI request timed out')); });
+    req.write(payload);
+    req.end();
+  });
+}
+
 /* ---- Health ---- */
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, configured: Boolean(groq), model: GROQ_MODEL });
+  res.json({ ok: true, configured: Boolean(requestyKey), model: DEFAULT_MODEL });
+});
+
+/* ---- Models ---- */
+app.get('/api/models', (_req, res) => {
+  res.json({ models: AVAILABLE_MODELS });
 });
 
 /* ---- Chat sessions ---- */
@@ -144,26 +211,40 @@ app.delete('/api/chats/:id', (req, res) => {
   }
 });
 
-/* ---- Tutor (Groq) ---- */
-const TUTOR_PROMPT = `You are AI Tutor, a friendly homework helper. Rules:
-1. Give the ANSWER first, clearly and simply.
-2. Then show HOW to solve it step by step, using plain text. Write fractions like 1/2, exponents like x^2, square roots like sqrt(9), multiplication like x * y.
-3. Use numbered steps. Keep it short and clear.
-4. If the problem is simple, just give the answer and a one-line explanation.
-5. At the end, add a "Practice" section with one similar problem.
-6. Do NOT use LaTeX, dollar signs, double-dollar math blocks, backslash commands, or any special math formatting. Keep everything as readable plain text with basic markdown (bold, numbered lists, headers).
+/* ---- Tutor ---- */
+const TUTOR_PROMPT = `You are AI Tutor — a world-class tutor for students from PK through AP/IB/honors/college level. You are an expert in Math (counting, arithmetic, algebra, geometry, calculus, statistics, combinatorics), English/Language Arts, Science, History, and General topics.
 
-Student request: `;
+CRITICAL RULES:
+1. ANSWER FIRST. Give the direct answer clearly at the top. No preamble, no "Let me help you with that", no filler.
+2. Then SHOW WORK step by step. For math: show each calculation. For counting: list items, use groups, show patterns. For science: explain concepts. For English: analyze. For history: give context.
+3. ADAPT to the student's level:
+   - PK-2nd grade: Simple words, very encouraging, use counting objects, small numbers
+   - 3rd-5th grade: Friendly tone, show work with small numbers
+   - 6th-8th grade: Academic but accessible, show algebraic thinking
+   - High school: Full academic vocabulary, complete solutions
+   - AP/IB/Honors/College: Rigorous terminology, full proofs, all intermediate steps, cite theorems
+4. PLAIN TEXT ONLY. Use these conventions:
+   - Fractions: 3/4
+   - Exponents: x^2
+   - Square roots: sqrt(9) = 3
+   - Multiplication: x * y or ·
+   - Division: 12 / 9 = 4/3 = 1.333...
+   - Inequalities: x > 5, x <= 10
+5. NEVER use LaTeX, dollar signs, backslash commands, or special math notation.
+6. For counting/combinatorics: use systematic listing, tree diagrams described in text, combinations (nCr), permutations (nPr), and explain the counting principle.
+7. For division: always show fraction form AND decimal form. Example: 12 / 9 = 4/3 = 1.333... (repeating)
+8. End with a PRACTICE section: one similar problem at the same difficulty for the student to try.
+9. Keep answers concise but complete. No apologies, no excessive preamble.`;
 
 app.post('/api/tutor', async (req, res) => {
   try {
-    const { prompt, image, history, subject } = req.body ?? {};
+    const { prompt, image, history, subject, model } = req.body ?? {};
     const cleanPrompt = typeof prompt === 'string' ? prompt.trim() : '';
     if (!cleanPrompt && !image) return res.status(400).json({ error: 'Add a question or upload a homework image first.' });
-    if (!groq) return res.status(503).json({ error: 'Groq is not configured yet. Add GROQ_API_KEY in your environment.' });
+    if (!requestyKey) return res.status(503).json({ error: 'AI is not configured yet. Add REQUESTY_API_KEY in your environment.' });
 
     const subjectHint = subject ? ` The student is focusing on ${subject}.` : '';
-    const userContent = [{ type: 'text', text: TUTOR_PROMPT + (cleanPrompt || 'Please read and explain the attached homework image.') + subjectHint }];
+    const userContent = [{ type: 'text', text: TUTOR_PROMPT + subjectHint + '\n\nStudent question: ' + (cleanPrompt || 'Please read and explain the attached homework image.') }];
     if (typeof image === 'string' && image.startsWith('data:image/')) {
       userContent.push({ type: 'image_url', image_url: { url: image } });
     }
@@ -173,13 +254,13 @@ app.post('/api/tutor', async (req, res) => {
       : [];
     messages.push({ role: 'user', content: userContent });
 
-    const completion = await groq.chat.completions.create({ model: GROQ_MODEL, messages, temperature: 0.35, max_tokens: 800 });
-    const answer = completion.choices[0]?.message?.content;
-    return res.json({ answer: typeof answer === 'string' ? answer : 'I could not create an explanation this time.' });
+    const chosenModel = typeof model === 'string' && model.trim() ? model.trim() : DEFAULT_MODEL;
+    const answer = await callRequesty(messages, chosenModel);
+    return res.json({ answer });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error('Tutor request failed:', msg);
-    return res.status(502).json({ error: `The tutor could not reach Groq right now. (${msg})` });
+    return res.status(502).json({ error: `The tutor could not reach the AI right now. (${msg})` });
   }
 });
 

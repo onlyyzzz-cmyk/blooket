@@ -1,7 +1,7 @@
 """API routes for tutor requests (POST /api/tutor)."""
 from common import (
     TUTOR_PROMPT,
-    call_groq,
+    call_ai,
     cors_headers,
     json_response,
     read_json_body,
@@ -23,6 +23,7 @@ def handler(request):
     image = data.get("image")
     history = data.get("history")
     subject = str(data.get("subject") or "").strip()
+    model = str(data.get("model") or "").strip() or None
 
     if not prompt and not image:
         return json_response(
@@ -51,7 +52,7 @@ def handler(request):
                 messages.append({"role": turn["role"], "content": turn["content"]})
     messages.append({"role": "user", "content": content})
 
-    answer, error = call_groq(messages)
+    answer, error = call_ai(messages, model=model)
     if error:
         return error
     return json_response(200, {"answer": answer}, cors_headers())
