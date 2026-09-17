@@ -5,6 +5,7 @@ import {
   errorMessage, formatDate, getChat, listChats, listModels,
   AiModel, Subject, Turn,
 } from './api';
+import Calculator from './Calculator';
 import './styles.css';
 
 const subjects: { label: Exclude<Subject, 'All'>; icon: string; color: string }[] = [
@@ -41,14 +42,6 @@ function SubjectIcon({ name, size = 16 }: { name: string; size?: number }) {
   return (
     <svg width={s} height={s} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
-    </svg>
-  );
-}
-
-function VisionBadge() {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
     </svg>
   );
 }
@@ -101,10 +94,12 @@ function ChatsApp() {
   const [models, setModels] = useState<AiModel[]>([]);
   const [selectedModel, setSelectedModel] = useState('qwen/qwen3.8-27b');
   const [showModelPicker, setShowModelPicker] = useState(false);
+  const [showCalc, setShowCalc] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const modelPickerRef = useRef<HTMLDivElement>(null);
+  const calcRef = useRef<HTMLDivElement>(null);
 
   const refreshChats = useCallback(async () => {
     try { setChats(await listChats()); } catch { /* leave list as-is */ }
@@ -118,17 +113,20 @@ function ChatsApp() {
     }).catch(() => {});
   }, []);
 
-  // Close model picker on outside click
+  // Close model picker / calculator on outside click
   useEffect(() => {
-    if (!showModelPicker) return;
+    if (!showModelPicker && !showCalc) return;
     const handler = (e: MouseEvent) => {
-      if (modelPickerRef.current && !modelPickerRef.current.contains(e.target as Node)) {
+      if (showModelPicker && modelPickerRef.current && !modelPickerRef.current.contains(e.target as Node)) {
         setShowModelPicker(false);
+      }
+      if (showCalc && calcRef.current && !calcRef.current.contains(e.target as Node)) {
+        setShowCalc(false);
       }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
-  }, [showModelPicker]);
+  }, [showModelPicker, showCalc]);
 
   useEffect(() => {
     const raw = sessionStorage.getItem('ai-tutor-pending');
@@ -219,6 +217,11 @@ function ChatsApp() {
   const activeChat = chats.find((c) => c.id === activeId) ?? null;
   const currentModel = models.find((m) => m.id === selectedModel);
   const imageWarning = image && currentModel && !currentModel.supportsImages;
+
+  const insertFromCalc = (value: string) => {
+    setPrompt((p) => (p ? `${p} ${value}` : value));
+    textareaRef.current?.focus();
+  };
 
   return (
     <div className="chat-layout">
@@ -340,12 +343,30 @@ function ChatsApp() {
               <button type="button" onClick={() => { setImage(undefined); setImageName(''); }}>✕</button>
             </div>
           )}
+          {showCalc && (
+            <div ref={calcRef} className="input-bar-calc">
+              <Calculator onInsert={insertFromCalc} />
+            </div>
+          )}
           <div className="input-bar-row">
             <input ref={fileInput} type="file" accept="image/*" capture="environment" onChange={handleImage} hidden />
             <button type="button" className="input-bar-tool" onClick={() => fileInput.current?.click()} title="Take a photo or upload">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
                 <circle cx="12" cy="13" r="4"/>
+              </svg>
+            </button>
+            <button
+              type="button"
+              className={`input-bar-tool ${showCalc ? 'calc-active' : ''}`}
+              onClick={() => setShowCalc((s) => !s)}
+              title="Calculator (grades 6-12)"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="4" y="2" width="16" height="20" rx="2"/>
+                <rect x="8" y="6" width="8" height="3" rx="0.5" fill="currentColor" stroke="none"/>
+                <line x1="8" y1="13" x2="8.01" y2="13"/><line x1="12" y1="13" x2="12.01" y2="13"/><line x1="16" y1="13" x2="16.01" y2="13"/>
+                <line x1="8" y1="17" x2="8.01" y2="17"/><line x1="12" y1="17" x2="12.01" y2="17"/><line x1="16" y1="17" x2="16.01" y2="17"/>
               </svg>
             </button>
             <textarea

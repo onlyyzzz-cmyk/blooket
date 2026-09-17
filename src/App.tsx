@@ -1,5 +1,6 @@
 import { ChangeEvent, FormEvent, useRef, useState } from 'react';
 import { errorMessage, Subject } from './api';
+import Calculator from './Calculator';
 
 const subjects: { label: Exclude<Subject, 'All'>; icon: string; color: string }[] = [
   { label: 'Math', icon: 'math', color: '#6366f1' },
@@ -47,8 +48,10 @@ export default function App() {
   const [activeSubject, setActiveSubject] = useState<Exclude<Subject, 'All'>>('General');
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState('');
+  const [showCalc, setShowCalc] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const calcRef = useRef<HTMLDivElement>(null);
 
   const handleImage = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -74,6 +77,11 @@ export default function App() {
       setIsSending(false);
       setError(errorMessage({}, 'Could not start the chat. Please try again.'));
     }
+  };
+
+  const insertFromCalc = (value: string) => {
+    setPrompt((p) => (p ? `${p} ${value}` : value));
+    textareaRef.current?.focus();
   };
 
   return (
@@ -120,6 +128,11 @@ export default function App() {
               <button type="button" className="image-remove" onClick={() => { setImage(undefined); setImageName(''); }}>✕</button>
             </div>
           )}
+          {showCalc && (
+            <div ref={calcRef} className="input-card-calc">
+              <Calculator onInsert={insertFromCalc} />
+            </div>
+          )}
           <textarea
             ref={textareaRef}
             value={prompt}
@@ -137,7 +150,19 @@ export default function App() {
                   <circle cx="12" cy="13" r="4"/>
                 </svg>
               </button>
-              <span className="tool-hint">Camera</span>
+              <button
+                type="button"
+                className={`tool-btn ${showCalc ? 'calc-active' : ''}`}
+                onClick={() => setShowCalc((s) => !s)}
+                title="Calculator (grades 6-12)"
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="4" y="2" width="16" height="20" rx="2"/>
+                  <rect x="8" y="6" width="8" height="3" rx="0.5" fill="currentColor" stroke="none"/>
+                  <line x1="8" y1="13" x2="8.01" y2="13"/><line x1="12" y1="13" x2="12.01" y2="13"/><line x1="16" y1="13" x2="16.01" y2="13"/>
+                  <line x1="8" y1="17" x2="8.01" y2="17"/><line x1="12" y1="17" x2="12.01" y2="17"/><line x1="16" y1="17" x2="16.01" y2="17"/>
+                </svg>
+              </button>
             </div>
             <button type="submit" className="send-btn" disabled={isSending}>
               {isSending ? (
@@ -158,9 +183,9 @@ export default function App() {
           <p>Snap a photo of any homework problem and get instant help.</p>
         </div>
         <div className="feature">
-          <div className="feature-icon-wrap"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg></div>
-          <h3>Step by Step</h3>
-          <p>Clear explanations with the answer first, then how to solve it.</p>
+          <div className="feature-icon-wrap"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2"/><rect x="8" y="6" width="8" height="3" rx="0.5" fill="currentColor" stroke="none"/><line x1="8" y1="13" x2="8.01" y2="13"/><line x1="12" y1="13" x2="12.01" y2="13"/><line x1="16" y1="13" x2="16.01" y2="13"/><line x1="8" y1="17" x2="8.01" y2="17"/><line x1="12" y1="17" x2="12.01" y2="17"/><line x1="16" y1="17" x2="16.01" y2="17"/></svg></div>
+          <h3>Built-in Calculator</h3>
+          <p>Scientific calculator with exponents, roots, trig, and logs for grades 6-12.</p>
         </div>
         <div className="feature">
           <div className="feature-icon-wrap"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 1.66 2.69 3 6 3s6-1.34 6-3v-5"/></svg></div>
