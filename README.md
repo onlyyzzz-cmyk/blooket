@@ -1,60 +1,31 @@
 # AI Tutor
 
-AI Tutor is a calm, focused study workspace for turning difficult homework into clear explanations. It supports typed questions and homework photos, remembers recent sessions locally, and lets students browse by Math, English, Science, or History.
+AI Tutor is a calm, focused study workspace for turning difficult homework into clear explanations. It supports typed questions, homework photos, chat history, subject filters, and Groq-powered tutoring.
 
-## What is included
+## InfinityFree upload
 
-- Modern responsive framework-free TypeScript dashboard
-- Text questions and image upload (PNG/JPG, up to 5 MB)
-- Groq-powered explanations through a framework-free Node HTTP server
-- Follow-up prompts and locally persisted learning history
-- Subject filters and a thoughtful empty state
-- API key kept out of the browser
+InfinityFree serves static HTML/CSS/JavaScript and PHP. Upload these files and folders to `public_html`:
 
-## Run locally
+- `index.html`, `chats.html`
+- `main.js`, `chats.js`, `api.js`, `styles.css`
+- `.htaccess`
+- `api/*.php`
 
-1. Install Node.js 18+.
-2. Install dependencies:
+The browser frontend is plain HTML/CSS/JavaScript and does not require a build step or Node runtime. The PHP endpoints keep `GROQ_API_KEY` on the server and expose:
 
-   ```bash
-   npm install
-   ```
+- `GET /api/health`
+- `GET /api/models`
+- `POST /api/tutor`
+- `GET|POST|DELETE /api/chats`
 
-3. Create a `.env` file in the project root. Do not commit it:
+Enable PHP in the InfinityFree control panel and configure `GROQ_API_KEY` using the host's PHP/environment configuration. Do not place the key in `main.js`, `chats.js`, `api.js`, HTML, or any public file. If InfinityFree does not provide environment variables for the account, use a server-side configuration method supported by the account and keep that file outside `public_html` when possible.
 
-   ```env
-   GROQ_API_KEY=your_groq_api_key_here
-   API_PORT=8787
-   ```
+The `.htaccess` file maps extensionless `/api/*` URLs to the PHP endpoints. If Apache rewrite rules are disabled on the account, change the browser API client to use `/api/health.php`, `/api/models.php`, `/api/tutor.php`, and `/api/chats.php` directly.
 
-   Create a key in the [Groq console](https://console.groq.com/keys). The server reads it only from `process.env`.
+## Source and local development
 
-4. Start the app:
+The root HTML, JavaScript, CSS, and `api/*.php` files are the complete InfinityFree upload. Do not upload `node_modules`, `package.json`, `package-lock.json`, `tsconfig.json`, `src/`, or the Python files to `public_html`; they are local/reference sources only. The optional Node and TypeScript files are retained for development and type checking, but InfinityFree requires no npm install, build step, Node process, or Python process.
 
-   ```bash
-   npm run dev
-   ```
+## Security
 
-   Vite builds the framework-free TypeScript UI into `dist/`. The Node server in `index.js` serves those static files and the `/api` routes from the same origin. The Python files in `api/` remain available for Python-oriented hosting adapters.
-
-## Scripts
-
-- `npm run dev` — builds the Vite frontend, then serves it with Node from `index.js`
-- `npm run build` — creates the production frontend bundle in `dist/`
-- `npm run typecheck` — checks the frontend TypeScript
-- `npm start` — builds and starts the Node static/API server
-- `npm run preview` — serves the existing `dist/` build with Node
-
-## API
-
-`POST /api/tutor` accepts `{ "prompt": string, "image": string }`. The image is an in-memory data URL and is never saved by the app. `GET /api/health` reports whether the server sees a configured Groq key without revealing it.
-
-The frontend uses same-origin `/api` routes by default, which works with the Node server, Vite’s proxy, and the Python route adapters. If the API is hosted separately, set the non-secret `VITE_API_URL` build variable; the frontend will use that base URL while keeping the same `/api/health`, `/api/models`, `/api/chats`, and `/api/tutor` contract.
-
-## Production hosting
-
-The Freebuff deployment for `aitutor.freebuff.app` is a static Vite deployment, so it can serve the TypeScript UI but cannot execute `index.js` or the Python files in `api/`. Run the Node server on a host that supports server processes, or connect the static frontend to a separately hosted Python API by setting the non-secret `VITE_API_URL` build variable. Never put `GROQ_API_KEY` in browser code.
-
-## Safety and learning approach
-
-AI Tutor is designed to explain reasoning, surface common mistakes, and offer practice—not just return answer keys. Responses can still be imperfect, so students should check important work with a teacher, textbook, or trusted source.
+The tutor API sends the Groq request server-side. Uploaded images are passed through as data URLs and are not intentionally persisted. Chat history is stored in `api/data/chats.json`; ensure that directory is writable and not publicly browsable on the host.

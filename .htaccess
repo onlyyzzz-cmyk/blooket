@@ -1,0 +1,10 @@
+RewriteEngine On
+RewriteRule ^api/data/ - [F,L]
+RewriteRule ^api/health$ api/health.php [L,QSA]
+RewriteRule ^api/models$ api/models.php [L,QSA]
+RewriteRule ^api/tutor$ api/tutor.php [L,QSA]
+RewriteRule ^api/chats(?:/([^/]+))?$ api/chats.php?id=$1 [L,QSA]
+
+<FilesMatch "^(\.env|.*\.log)$">
+  Require all denied
+</FilesMatch>

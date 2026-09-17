@@ -28,7 +28,7 @@ export const DEFAULT_MODELS: AiModel[] = [
   { id: 'groq/compound-mini', name: 'Compound Mini', provider: 'Groq', tier: 'fast', supportsImages: false },
 ];
 
-const configuredApiUrl = (import.meta.env.VITE_API_URL || '').trim().replace(/\/$/, '');
+const configuredApiUrl = (typeof window !== 'undefined' ? ((window as Window & { AI_TUTOR_API_URL?: string }).AI_TUTOR_API_URL || '') : '').trim().replace(/\/$/, '');
 
 function apiPath(path: string): string {
   return configuredApiUrl ? `${configuredApiUrl}${path}` : path;
