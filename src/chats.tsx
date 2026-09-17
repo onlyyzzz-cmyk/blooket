@@ -263,7 +263,7 @@ function ChatsApp() {
             <div className="model-switcher" ref={modelPickerRef}>
               <button className="model-trigger" onClick={() => setShowModelPicker(!showModelPicker)}>
                 <ModelIcon tier={currentModel?.tier || 'balanced'} />
-                <span>{currentModel?.name || 'Gemini 2.5 Flash'}</span>
+                <span>{currentModel?.name || 'Qwen 3.8 27B'}</span>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
               </button>
               {showModelPicker && (
@@ -341,10 +341,11 @@ function ChatsApp() {
             </div>
           )}
           <div className="input-bar-row">
-            <input ref={fileInput} type="file" accept="image/*" onChange={handleImage} hidden />
-            <button type="button" className="input-bar-tool" onClick={() => fileInput.current?.click()} title="Upload photo">
+            <input ref={fileInput} type="file" accept="image/*" capture="environment" onChange={handleImage} hidden />
+            <button type="button" className="input-bar-tool" onClick={() => fileInput.current?.click()} title="Take a photo or upload">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                <circle cx="12" cy="13" r="4"/>
               </svg>
             </button>
             <textarea

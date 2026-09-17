@@ -38,6 +38,36 @@ const DEFAULT_MODEL = 'qwen/qwen3.8-27b';
 
 app.use(express.json({ limit: '8mb' }));
 
+/* ---- Rate Limiting ---- */
+const rateLimits = new Map(); // ip -> { count, resetAt }
+const RATE_LIMIT = 20; // requests per window
+const RATE_WINDOW = 60 * 1000; // 1 minute
+
+function rateLimiter(req, res, next) {
+  const ip = req.ip || req.connection?.remoteAddress || 'unknown';
+  const now = Date.now();
+  let entry = rateLimits.get(ip);
+  if (!entry || now > entry.resetAt) {
+    entry = { count: 0, resetAt: now + RATE_WINDOW };
+    rateLimits.set(ip, entry);
+  }
+  entry.count++;
+  if (entry.count > RATE_LIMIT) {
+    const retryAfter = Math.ceil((entry.resetAt - now) / 1000);
+    res.set('Retry-After', String(retryAfter));
+    return res.status(429).json({ error: `Too many requests. Try again in ${retryAfter} seconds.` });
+  }
+  next();
+}
+
+// Clean up stale entries every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of rateLimits) {
+    if (now > entry.resetAt) rateLimits.delete(ip);
+  }
+}, 5 * 60 * 1000);
+
 /* ---- Chat storage helpers ---- */
 function loadChats() {
   try {
@@ -183,7 +213,7 @@ CRITICAL RULES:
 8. End with a PRACTICE section: one similar problem at the same difficulty for the student to try.
 9. Keep answers concise but complete. No apologies, no excessive preamble.`;
 
-app.post('/api/tutor', async (req, res) => {
+app.post('/api/tutor', rateLimiter, async (req, res) => {
   try {
     const { prompt, image, history, subject, model } = req.body ?? {};
     const cleanPrompt = typeof prompt === 'string' ? prompt.trim() : '';
