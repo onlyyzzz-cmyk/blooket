@@ -4,7 +4,10 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "typecheck": "tsc --noEmit",
+    "api": "python3 api/app.py"
   },
   "dependencies": {
     "dotenv": "^16.4.7",
@@ -12,6 +15,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
+    "vite": "^6.0.7",
     "typescript": "^5.7.2"
   }
 }

@@ -83,7 +83,7 @@ export async function listChats(): Promise<ChatSummary[]> {
 
 export async function getChat(id: string): Promise<ChatDetail | null> {
   try {
-    const response = await fetch(apiPath(`/api/chats/${encodeURIComponent(id)}`), { headers: { Accept: 'application/json' } });
+    const response = await fetch(apiPath(`/api/chats?id=${encodeURIComponent(id)}`), { headers: { Accept: 'application/json' } });
     if (!response.ok) return null;
     const data = await readJson(response);
     return (data.chat as ChatDetail) || null;
@@ -105,7 +105,7 @@ export async function createChat(subject: string, messages: Turn[]): Promise<Cha
 
 export async function appendToChat(id: string, turn: Turn): Promise<void> {
   try {
-    await fetch(apiPath(`/api/chats/${encodeURIComponent(id)}`), {
+    await fetch(apiPath(`/api/chats?id=${encodeURIComponent(id)}`), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ add: turn }),
@@ -115,7 +115,7 @@ export async function appendToChat(id: string, turn: Turn): Promise<void> {
 
 export async function deleteChat(id: string): Promise<void> {
   try {
-    await fetch(apiPath(`/api/chats/${encodeURIComponent(id)}`), { method: 'DELETE', headers: { Accept: 'application/json' } });
+    await fetch(apiPath(`/api/chats?id=${encodeURIComponent(id)}`), { method: 'DELETE', headers: { Accept: 'application/json' } });
   } catch { /* ignore network errors during delete */ }
 }
 
