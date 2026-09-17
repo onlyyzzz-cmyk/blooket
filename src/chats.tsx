@@ -45,6 +45,14 @@ function SubjectIcon({ name, size = 16 }: { name: string; size?: number }) {
   );
 }
 
+function VisionBadge() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+    </svg>
+  );
+}
+
 function ModelIcon({ tier }: { tier: string }) {
   if (tier === 'fast') return (
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -91,7 +99,7 @@ function ChatsApp() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [models, setModels] = useState<AiModel[]>([]);
-  const [selectedModel, setSelectedModel] = useState('google/gemini-2.5-flash');
+  const [selectedModel, setSelectedModel] = useState('qwen/qwen3.8-27b');
   const [showModelPicker, setShowModelPicker] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -210,6 +218,7 @@ function ChatsApp() {
 
   const activeChat = chats.find((c) => c.id === activeId) ?? null;
   const currentModel = models.find((m) => m.id === selectedModel);
+  const imageWarning = image && currentModel && !currentModel.supportsImages;
 
   return (
     <div className="chat-layout">
@@ -269,7 +278,10 @@ function ChatsApp() {
                       <ModelIcon tier={m.tier} />
                       <div className="model-option-info">
                         <span className="model-option-name">{m.name}</span>
-                        <span className="model-option-meta">{m.provider} · {m.tier}</span>
+                        <span className="model-option-meta">
+                          {m.provider} · {m.tier}
+                          {m.supportsImages && ' · 📷'}
+                        </span>
                       </div>
                       {m.id === selectedModel && (
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -314,6 +326,11 @@ function ChatsApp() {
           )}
         </div>
 
+        {imageWarning && (
+          <div className="chat-error" style={{ color: '#f59e0b' }}>
+            📷 {currentModel.name} is text-only — image won't be analyzed. Switch to Qwen 3.8 27B for image support.
+          </div>
+        )}
         {error && <div className="chat-error">{error}</div>}
 
         <form className="chat-input-bar" onSubmit={sendMessage}>

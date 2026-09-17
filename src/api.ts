@@ -17,6 +17,7 @@ export type AiModel = {
   name: string;
   provider: string;
   tier: 'fast' | 'balanced' | 'powerful';
+  supportsImages: boolean;
 };
 
 /** Read a JSON body defensively — never throws on HTML/empty/error bodies. */

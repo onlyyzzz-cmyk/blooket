@@ -5,16 +5,14 @@ import urllib.request
 import urllib.error
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-DEFAULT_MODEL = "llama-3.3-70b-versatile"
+DEFAULT_MODEL = "qwen/qwen3.8-27b"
 
 AVAILABLE_MODELS = [
-    {"id": "llama-3.3-70b-versatile", "name": "Llama 3.3 70B", "provider": "Meta", "tier": "powerful"},
-    {"id": "llama-3.1-8b-instant", "name": "Llama 3.1 8B", "provider": "Meta", "tier": "fast"},
-    {"id": "llama3-70b-8192", "name": "Llama 3 70B", "provider": "Meta", "tier": "powerful"},
-    {"id": "llama3-8b-8192", "name": "Llama 3 8B", "provider": "Meta", "tier": "fast"},
-    {"id": "mixtral-8x7b-32768", "name": "Mixtral 8x7B", "provider": "Mistral", "tier": "balanced"},
-    {"id": "gemma2-9b-it", "name": "Gemma 2 9B", "provider": "Google", "tier": "fast"},
-    {"id": "qwen-qwq-32b", "name": "Qwen QwQ 32B", "provider": "Alibaba", "tier": "balanced"},
+    {"id": "qwen/qwen3.8-27b", "name": "Qwen 3.8 27B", "provider": "Alibaba", "tier": "balanced", "supportsImages": True},
+    {"id": "openai/gpt-oss-120b", "name": "GPT OSS 120B", "provider": "OpenAI", "tier": "powerful", "supportsImages": False},
+    {"id": "openai/gpt-oss-20b", "name": "GPT OSS 20B", "provider": "OpenAI", "tier": "fast", "supportsImages": False},
+    {"id": "groq/compound", "name": "Compound", "provider": "Groq", "tier": "powerful", "supportsImages": False},
+    {"id": "groq/compound-mini", "name": "Compound Mini", "provider": "Groq", "tier": "fast", "supportsImages": False},
 ]
 
 TUTOR_PROMPT = (

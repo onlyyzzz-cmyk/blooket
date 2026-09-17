@@ -28,15 +28,13 @@ const chatsFile = path.join(dataDir, 'chats.json');
 const VALID_SUBJECTS = ['Math', 'English', 'Science', 'History', 'General'];
 
 const AVAILABLE_MODELS = [
-  { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B', provider: 'Meta', tier: 'powerful' },
-  { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B', provider: 'Meta', tier: 'fast' },
-  { id: 'llama3-70b-8192', name: 'Llama 3 70B', provider: 'Meta', tier: 'powerful' },
-  { id: 'llama3-8b-8192', name: 'Llama 3 8B', provider: 'Meta', tier: 'fast' },
-  { id: 'mixtral-8x7b-32768', name: 'Mixtral 8x7B', provider: 'Mistral', tier: 'balanced' },
-  { id: 'gemma2-9b-it', name: 'Gemma 2 9B', provider: 'Google', tier: 'fast' },
-  { id: 'qwen-qwq-32b', name: 'Qwen QwQ 32B', provider: 'Alibaba', tier: 'balanced' },
+  { id: 'qwen/qwen3.8-27b', name: 'Qwen 3.8 27B', provider: 'Alibaba', tier: 'balanced', supportsImages: true },
+  { id: 'openai/gpt-oss-120b', name: 'GPT OSS 120B', provider: 'OpenAI', tier: 'powerful', supportsImages: false },
+  { id: 'openai/gpt-oss-20b', name: 'GPT OSS 20B', provider: 'OpenAI', tier: 'fast', supportsImages: false },
+  { id: 'groq/compound', name: 'Compound', provider: 'Groq', tier: 'powerful', supportsImages: false },
+  { id: 'groq/compound-mini', name: 'Compound Mini', provider: 'Groq', tier: 'fast', supportsImages: false },
 ];
-const DEFAULT_MODEL = 'llama-3.3-70b-versatile';
+const DEFAULT_MODEL = 'qwen/qwen3.8-27b';
 
 app.use(express.json({ limit: '8mb' }));
 
@@ -194,8 +192,17 @@ app.post('/api/tutor', async (req, res) => {
 
     const subjectHint = subject ? ` The student is focusing on ${subject}.` : '';
     const userContent = [{ type: 'text', text: TUTOR_PROMPT + subjectHint + '\n\nStudent question: ' + (cleanPrompt || 'Please read and explain the attached homework image.') }];
-    if (typeof image === 'string' && image.startsWith('data:image/')) {
+
+    const chosenModel = typeof model === 'string' && model.trim() ? model.trim() : DEFAULT_MODEL;
+
+    // Only attach image if the model supports it
+    const modelInfo = AVAILABLE_MODELS.find((m) => m.id === chosenModel);
+    const imageAttached = typeof image === 'string' && image.startsWith('data:image/');
+    if (imageAttached && modelInfo?.supportsImages) {
       userContent.push({ type: 'image_url', image_url: { url: image } });
+    } else if (imageAttached && !modelInfo?.supportsImages) {
+      // Image attached but model doesn't support it — append as text description
+      userContent[0].text += '\n\n[Note: The student attached a homework image, but the selected model does not support images. Please answer based on the text description above.]';
     }
 
     const messages = Array.isArray(history)
@@ -203,7 +210,6 @@ app.post('/api/tutor', async (req, res) => {
       : [];
     messages.push({ role: 'user', content: userContent });
 
-    const chosenModel = typeof model === 'string' && model.trim() ? model.trim() : DEFAULT_MODEL;
     const completion = await groq.chat.completions.create({ model: chosenModel, messages, temperature: 0.35, max_tokens: 1200 });
     const answer = completion.choices[0]?.message?.content;
     return res.json({ answer: typeof answer === 'string' ? answer : 'I could not create an explanation this time.' });
