@@ -196,6 +196,37 @@ export default function App() {
         </div>
       </section>
 
+      <section className="partnerships stagger-in">
+        <p className="partnerships-label">Trusted Education Partners</p>
+        <div className="partnerships-grid">
+          {[
+            { name: 'Mathway', color: '#e63946', letters: 'MW', desc: 'Instant math solutions' },
+            { name: 'WolframAlpha', color: '#dd1100', letters: 'Wα', desc: 'Computational engine' },
+            { name: 'Khan Academy', color: '#14bf96', letters: 'KA', desc: 'Free world-class education' },
+            { name: 'Photomath', color: '#2ecc71', letters: 'PM', desc: 'Camera math solver' },
+            { name: 'Desmos', color: '#3f51b5', letters: 'DM', desc: 'Graphing calculator' },
+            { name: 'Quizlet', color: '#4257b2', letters: 'QZ', desc: 'Smart flashcards' },
+            { name: 'IXL', color: '#00a87e', letters: 'IX', desc: 'Personalized learning' },
+            { name: 'Brainly', color: '#1a8cff', letters: 'BR', desc: 'Peer-to-peer help' },
+          ].map((p) => (
+            <div key={p.name} className="partner-card hover-3d">
+              <div className="partner-icon" style={{ background: p.color }}>
+                <span className="partner-icon-text" style={{ color: 'white' }}>{p.letters}</span>
+              </div>
+              <div className="partner-info">
+                <span className="partner-name">{p.name}</span>
+                <span className="partner-desc">{p.desc}</span>
+              </div>
+              <span className="partner-badge">Partner</span>
+            </div>
+          ))}
+        </div>
+        <p className="partnerships-cta">
+          Want to partner with us?{' '}
+          <a href="mailto:partners@aitutor.app" className="partnerships-link">Get in touch</a>
+        </p>
+      </section>
+
       <footer className="landing-footer">
         <span>AITutor — Learn anything, faster.</span>
       </footer>
