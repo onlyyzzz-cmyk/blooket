@@ -4,19 +4,17 @@ import os
 import urllib.request
 import urllib.error
 
-REQUESTY_API_URL = "https://router.requesty.ai/v1/chat/completions"
-DEFAULT_MODEL = "openai/gpt-4o"
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+DEFAULT_MODEL = "llama-3.3-70b-versatile"
 
 AVAILABLE_MODELS = [
-    {"id": "openai/gpt-4o", "name": "GPT-4o", "provider": "OpenAI", "tier": "balanced"},
-    {"id": "openai/gpt-4o-mini", "name": "GPT-4o Mini", "provider": "OpenAI", "tier": "fast"},
-    {"id": "anthropic/claude-sonnet-4-20250514", "name": "Claude Sonnet 4", "provider": "Anthropic", "tier": "balanced"},
-    {"id": "anthropic/claude-3-5-haiku-20241022", "name": "Claude 3.5 Haiku", "provider": "Anthropic", "tier": "fast"},
-    {"id": "google/gemini-2.5-flash-preview", "name": "Gemini 2.5 Flash", "provider": "Google", "tier": "fast"},
-    {"id": "google/gemini-2.5-pro-preview-05-06", "name": "Gemini 2.5 Pro", "provider": "Google", "tier": "powerful"},
-    {"id": "deepseek/deepseek-chat", "name": "DeepSeek V3", "provider": "DeepSeek", "tier": "balanced"},
-    {"id": "deepseek/deepseek-reasoner", "name": "DeepSeek R1", "provider": "DeepSeek", "tier": "powerful"},
-    {"id": "meta-llama/llama-4-maverick-17b-128e-instruct", "name": "Llama 4 Maverick", "provider": "Meta", "tier": "balanced"},
+    {"id": "llama-3.3-70b-versatile", "name": "Llama 3.3 70B", "provider": "Meta", "tier": "powerful"},
+    {"id": "llama-3.1-8b-instant", "name": "Llama 3.1 8B", "provider": "Meta", "tier": "fast"},
+    {"id": "llama3-70b-8192", "name": "Llama 3 70B", "provider": "Meta", "tier": "powerful"},
+    {"id": "llama3-8b-8192", "name": "Llama 3 8B", "provider": "Meta", "tier": "fast"},
+    {"id": "mixtral-8x7b-32768", "name": "Mixtral 8x7B", "provider": "Mistral", "tier": "balanced"},
+    {"id": "gemma2-9b-it", "name": "Gemma 2 9B", "provider": "Google", "tier": "fast"},
+    {"id": "qwen-qwq-32b", "name": "Qwen QwQ 32B", "provider": "Alibaba", "tier": "balanced"},
 ]
 
 TUTOR_PROMPT = (
@@ -71,17 +69,17 @@ def read_json_body(request):
         return None, json_response(400, {"error": "Invalid JSON body."})
 
 
-def requesty_key():
-    return os.environ.get("REQUESTY_API_KEY")
+def groq_key():
+    return os.environ.get("GROQ_API_KEY")
 
 
-def call_ai(messages, model=None):
-    """Call Requesty AI gateway (OpenAI-compatible). Returns (answer, error_response)."""
-    api_key = requesty_key()
+def call_groq(messages, model=None):
+    """Call Groq chat completions. Returns (answer, error_response)."""
+    api_key = groq_key()
     if not api_key:
         return None, json_response(
             503,
-            {"error": "AI is not configured yet. Set REQUESTY_API_KEY in your environment."},
+            {"error": "AI is not configured yet. Set GROQ_API_KEY in your environment."},
         )
 
     chosen_model = model or DEFAULT_MODEL
@@ -91,23 +89,22 @@ def call_ai(messages, model=None):
             "model": chosen_model,
             "messages": messages,
             "temperature": 0.35,
-            "max_tokens": 2000,
+            "max_tokens": 1200,
         }
     ).encode("utf-8")
 
     req = urllib.request.Request(
-        REQUESTY_API_URL,
+        GROQ_API_URL,
         data=payload,
         headers={
             "Content-Type": "application/json",
             "Authorization": f"Bearer {api_key}",
-            "X-Title": "AITutor",
         },
         method="POST",
     )
 
     try:
-        with urllib.request.urlopen(req, timeout=90) as response:
+        with urllib.request.urlopen(req, timeout=60) as response:
             result = json.loads(response.read().decode("utf-8"))
         answer = (
             result.get("choices", [{}])[0]
@@ -120,10 +117,10 @@ def call_ai(messages, model=None):
         detail = exc.read().decode("utf-8", "replace")[:300]
         return None, json_response(
             502,
-            {"error": f"The tutor could not reach the AI provider right now. ({exc.code}: {detail})"},
+            {"error": f"The tutor could not reach Groq right now. ({exc.code}: {detail})"},
         )
     except (urllib.error.URLError, TimeoutError, OSError):
         return None, json_response(
             502,
-            {"error": "The tutor could not reach the AI provider right now. Check your key and try again."},
+            {"error": "The tutor could not reach Groq right now. Check your key and try again."},
         )

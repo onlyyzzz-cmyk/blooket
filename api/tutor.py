@@ -1,7 +1,7 @@
 """API routes for tutor requests (POST /api/tutor)."""
 from common import (
     TUTOR_PROMPT,
-    call_ai,
+    call_groq,
     cors_headers,
     json_response,
     read_json_body,
@@ -52,7 +52,7 @@ def handler(request):
                 messages.append({"role": turn["role"], "content": turn["content"]})
     messages.append({"role": "user", "content": content})
 
-    answer, error = call_ai(messages, model=model)
+    answer, error = call_groq(messages, model=model)
     if error:
         return error
     return json_response(200, {"answer": answer}, cors_headers())

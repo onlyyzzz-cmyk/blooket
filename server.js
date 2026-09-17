@@ -3,11 +3,11 @@ dotenv.config({ path: '.env.local' });
 dotenv.config();
 import express from 'express';
 import http from 'node:http';
-import https from 'node:https';
 import fs from 'node:fs';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
+import Groq from 'groq-sdk';
 
 /* ---- Crash protection ---- */
 process.on('unhandledRejection', (reason) => {
@@ -20,9 +20,7 @@ process.on('uncaughtException', (err) => {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const port = Number(process.env.PORT || process.env.API_PORT || 8787);
-
-const REQUESTY_API_URL = 'https://router.requesty.ai/v1/chat/completions';
-const requestyKey = process.env.REQUESTY_API_KEY || '';
+const groq = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
 
 const dataDir = process.env.DATA_DIR || path.join(__dirname, 'api', 'data');
 try { fs.mkdirSync(dataDir, { recursive: true }); } catch { /* ignore */ }
@@ -30,16 +28,15 @@ const chatsFile = path.join(dataDir, 'chats.json');
 const VALID_SUBJECTS = ['Math', 'English', 'Science', 'History', 'General'];
 
 const AVAILABLE_MODELS = [
-  { id: 'google/gemini-2.5-flash', name: 'Gemini 2.5 Flash', provider: 'Google', tier: 'fast' },
-  { id: 'google/gemini-2.5-pro', name: 'Gemini 2.5 Pro', provider: 'Google', tier: 'powerful' },
-  { id: 'openai/gpt-4o', name: 'GPT-4o', provider: 'OpenAI', tier: 'balanced' },
-  { id: 'openai/gpt-4o-mini', name: 'GPT-4o Mini', provider: 'OpenAI', tier: 'fast' },
-  { id: 'anthropic/claude-sonnet-4-20250514', name: 'Claude Sonnet 4', provider: 'Anthropic', tier: 'balanced' },
-  { id: 'deepseek/deepseek-chat', name: 'DeepSeek V3', provider: 'DeepSeek', tier: 'balanced' },
-  { id: 'deepseek/deepseek-r1', name: 'DeepSeek R1', provider: 'DeepSeek', tier: 'powerful' },
-  { id: 'meta-llama/llama-4-maverick-17b-128e-instruct', name: 'Llama 4 Maverick', provider: 'Meta', tier: 'balanced' },
+  { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3 70B', provider: 'Meta', tier: 'powerful' },
+  { id: 'llama-3.1-8b-instant', name: 'Llama 3.1 8B', provider: 'Meta', tier: 'fast' },
+  { id: 'llama3-70b-8192', name: 'Llama 3 70B', provider: 'Meta', tier: 'powerful' },
+  { id: 'llama3-8b-8192', name: 'Llama 3 8B', provider: 'Meta', tier: 'fast' },
+  { id: 'mixtral-8x7b-32768', name: 'Mixtral 8x7B', provider: 'Mistral', tier: 'balanced' },
+  { id: 'gemma2-9b-it', name: 'Gemma 2 9B', provider: 'Google', tier: 'fast' },
+  { id: 'qwen-qwq-32b', name: 'Qwen QwQ 32B', provider: 'Alibaba', tier: 'balanced' },
 ];
-const DEFAULT_MODEL = 'google/gemini-2.5-flash';
+const DEFAULT_MODEL = 'llama-3.3-70b-versatile';
 
 app.use(express.json({ limit: '8mb' }));
 
@@ -73,57 +70,9 @@ function chatSummary(chat) {
   };
 }
 
-/* ---- Call Requesty API (OpenAI-compatible) ---- */
-function callRequesty(messages, model = DEFAULT_MODEL) {
-  return new Promise((resolve, reject) => {
-    const payload = JSON.stringify({
-      model,
-      messages,
-      temperature: 0.35,
-      max_tokens: 2000,
-    });
-
-    const url = new URL(REQUESTY_API_URL);
-    const options = {
-      hostname: url.hostname,
-      port: 443,
-      path: url.pathname,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${requestyKey}`,
-        'X-Title': 'AITutor',
-      },
-    };
-
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', (chunk) => { data += chunk; });
-      res.on('end', () => {
-        try {
-          const result = JSON.parse(data);
-          const answer = result?.choices?.[0]?.message?.content;
-          if (answer) {
-            resolve(answer);
-          } else {
-            reject(new Error(result?.error?.message || 'Empty response from AI'));
-          }
-        } catch (e) {
-          reject(new Error('Failed to parse AI response'));
-        }
-      });
-    });
-
-    req.on('error', reject);
-    req.setTimeout(90000, () => { req.destroy(); reject(new Error('AI request timed out')); });
-    req.write(payload);
-    req.end();
-  });
-}
-
 /* ---- Health ---- */
 app.get('/api/health', (_req, res) => {
-  res.json({ ok: true, configured: Boolean(requestyKey), model: DEFAULT_MODEL });
+  res.json({ ok: true, configured: Boolean(groq), model: DEFAULT_MODEL });
 });
 
 /* ---- Models ---- */
@@ -241,7 +190,7 @@ app.post('/api/tutor', async (req, res) => {
     const { prompt, image, history, subject, model } = req.body ?? {};
     const cleanPrompt = typeof prompt === 'string' ? prompt.trim() : '';
     if (!cleanPrompt && !image) return res.status(400).json({ error: 'Add a question or upload a homework image first.' });
-    if (!requestyKey) return res.status(503).json({ error: 'AI is not configured yet. Add REQUESTY_API_KEY in your environment.' });
+    if (!groq) return res.status(503).json({ error: 'Groq is not configured yet. Add GROQ_API_KEY in your environment.' });
 
     const subjectHint = subject ? ` The student is focusing on ${subject}.` : '';
     const userContent = [{ type: 'text', text: TUTOR_PROMPT + subjectHint + '\n\nStudent question: ' + (cleanPrompt || 'Please read and explain the attached homework image.') }];
@@ -255,12 +204,13 @@ app.post('/api/tutor', async (req, res) => {
     messages.push({ role: 'user', content: userContent });
 
     const chosenModel = typeof model === 'string' && model.trim() ? model.trim() : DEFAULT_MODEL;
-    const answer = await callRequesty(messages, chosenModel);
-    return res.json({ answer });
+    const completion = await groq.chat.completions.create({ model: chosenModel, messages, temperature: 0.35, max_tokens: 1200 });
+    const answer = completion.choices[0]?.message?.content;
+    return res.json({ answer: typeof answer === 'string' ? answer : 'I could not create an explanation this time.' });
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.error('Tutor request failed:', msg);
-    return res.status(502).json({ error: `The tutor could not reach the AI right now. (${msg})` });
+    return res.status(502).json({ error: `The tutor could not reach Groq right now. (${msg})` });
   }
 });
 
