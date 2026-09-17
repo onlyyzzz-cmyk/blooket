@@ -44,7 +44,6 @@ AI Tutor is a calm, focused study workspace for turning difficult homework into 
 - `npm run typecheck` — checks the frontend TypeScript
 - `npm start` — builds and starts the Node static/API server
 - `npm run preview` — serves the existing `dist/` build with Node
-- `vercel.json` + `api/*.js` — optional Vercel serverless adapter for production API hosting
 
 ## API
 
@@ -54,7 +53,7 @@ The frontend uses same-origin `/api` routes by default, which works with the Nod
 
 ## Production hosting
 
-The Freebuff deployment for `aitutor.freebuff.app` is a static Vite deployment, so it can serve the TypeScript UI but cannot execute `index.js` or the Python files in `api/`. The root `api/*.js` files and `vercel.json` provide a no-Express Vercel serverless adapter for `/api/health`, `/api/models`, and `/api/tutor`; deploy that API to a function-capable host with `GROQ_API_KEY`, then set `VITE_API_URL` to its public URL before rebuilding the static frontend. Never put `GROQ_API_KEY` in Vite client variables.
+The Freebuff deployment for `aitutor.freebuff.app` is a static Vite deployment, so it can serve the TypeScript UI but cannot execute `index.js` or the Python files in `api/`. Run the Node server on a host that supports server processes, or connect the static frontend to a separately hosted Python API by setting the non-secret `VITE_API_URL` build variable. Never put `GROQ_API_KEY` in browser code.
 
 ## Safety and learning approach
 
