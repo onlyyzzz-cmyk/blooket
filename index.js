@@ -10,7 +10,7 @@ import Groq from 'groq-sdk';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT || process.env.API_PORT || 8787);
-const distPath = path.join(__dirname, 'dist');
+const publicPath = path.join(__dirname, 'public');
 const dataDir = process.env.DATA_DIR || path.join(__dirname, 'api', 'data');
 const chatsFile = path.join(dataDir, 'chats.json');
 const groq = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
@@ -255,7 +255,7 @@ const MIME_TYPES = {
 function sendHtmlFile(res, filePath) {
   if (!fs.existsSync(filePath)) {
     res.writeHead(503, { 'Content-Type': 'text/html; charset=utf-8' });
-    res.end('<!doctype html><html><body style="font-family:sans-serif;padding:40px"><h2>Frontend build is missing.</h2><p>The <code>dist/</code> folder was not created. Make sure the deploy runs <code>npm start</code> (which builds via the prestart hook) or <code>npm run build</code> first.</p></body></html>');
+    res.end('<!doctype html><html><body style="font-family:sans-serif;padding:40px"><h2>Frontend files are missing.</h2><p>The <code>public/</code> folder could not be found. Make sure the full repository is deployed.</p></body></html>');
     return;
   }
   const stream = fs.createReadStream(filePath);
@@ -268,7 +268,7 @@ function serveStatic(res, pathname) {
   const requested = pathname === '/' ? 'index.html' : pathname.slice(1);
   const safePath = path.normalize(requested);
   if (safePath.startsWith('..') || path.isAbsolute(safePath)) return sendError(res, 403, 'Forbidden.');
-  const filePath = path.join(distPath, safePath);
+  const filePath = path.join(publicPath, safePath);
   try {
     const stats = fs.statSync(filePath);
     if (!stats.isFile()) throw new Error('Not a file');
@@ -278,7 +278,7 @@ function serveStatic(res, pathname) {
     res.writeHead(200, { 'Content-Type': contentType });
     stream.pipe(res);
   } catch {
-    const fallback = path.join(distPath, pathname === '/chats' || pathname === '/chats.html' ? 'chats.html' : 'index.html');
+    const fallback = path.join(publicPath, pathname === '/chats' || pathname === '/chats.html' ? 'chats.html' : 'index.html');
     sendHtmlFile(res, fallback);
   }
 }
@@ -304,7 +304,7 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(port, '0.0.0.0', () => {
   console.log(`AI Tutor server listening on 0.0.0.0:${port}`);
-  console.log(`Serving static files from: ${distPath} (exists: ${fs.existsSync(path.join(distPath, 'index.html'))})`);
+  console.log(`Serving static files from: ${publicPath} (exists: ${fs.existsSync(path.join(publicPath, 'index.html'))})`);
 });
 server.keepAliveTimeout = 65_000;
 server.headersTimeout = 70_000;

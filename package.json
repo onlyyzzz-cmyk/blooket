@@ -4,20 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --host 0.0.0.0",
-    "build": "vite build",
-    "typecheck": "tsc --noEmit",
+    "dev": "node index.js",
+    "typecheck": "node --check index.js",
     "api": "python3 api/app.py",
-    "prestart": "npm run build",
     "start": "node index.js"
   },
   "dependencies": {
     "dotenv": "^16.4.7",
-    "groq-sdk": "^0.15.0",
-    "vite": "^6.0.7"
-  },
-  "devDependencies": {
-    "@types/node": "^22.10.5",
-    "typescript": "^5.7.2"
+    "groq-sdk": "^0.15.0"
   }
 }

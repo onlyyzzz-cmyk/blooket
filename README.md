@@ -4,28 +4,27 @@ AI Tutor is a calm, focused study workspace for turning difficult homework into 
 
 ## Stack
 
-- **Node + Vite** handles the TypeScript frontend and static production build.
-- **Python 3** runs the API in `api/app.py` using only the standard library.
+- **Node.js** runs the entire app in `index.js` — the API, static frontend, and extensionless `/chats` route in one process. No build step.
+- The frontend is plain HTML/CSS/JavaScript in `public/` (no bundler, no TypeScript compile).
+- **Python 3** offers an equivalent API in `api/app.py` using only the standard library, for hosts that prefer Python.
 - **Groq** provides the tutoring responses through the server-side `GROQ_API_KEY`.
 - Chat history is stored in `api/data/chats.json`.
 
 ## Local development
 
-Install the Node dependencies, then run the frontend and API in separate terminals:
+Install the Node dependencies, then run the app:
 
 ```bash
 npm install
-npm run api
-npm run dev
+npm start
 ```
 
-Vite serves the frontend on its configured preview port and proxies `/api/*` requests to the Python API on port `8000`. The Python API binds to `0.0.0.0` and respects `PORT` when supplied by the hosting environment. Set `GROQ_API_KEY` through the workspace environment; never put it in frontend files.
+That's it — one process serves the frontend, the API, and the `/chats` route on the configured `PORT` (default 8787). For API-only development, run `npm run api` to start the Python API on port 8000 instead.
 
 Useful commands:
 
 ```bash
-npm run typecheck
-npm run build
+npm run typecheck   # syntax-checks index.js
 python3 -m py_compile api/app.py
 ```
 
@@ -48,16 +47,14 @@ The API remains usable without the key for health and model checks, but tutoring
 
 ### Bonto (recommended — one service for everything)
 
-The app runs as a single Node.js service via `node index.js`, which serves the API, static assets, and the extensionless `/chats` route together. Bonto auto-detects `package.json`, installs dependencies, runs `npm run build` (via the `prestart` hook), and starts the server.
+The app runs as a single Node.js service via `node index.js`. No build step is needed — static files are served straight from `public/`.
 
 1. Create a project on [bonto.dev](https://bonto.dev) (or connect via Git push-to-deploy).
-2. Add the environment variables in the Bonto dashboard:
-   - `GROQ_API_KEY` — required for live tutoring responses.
-   - `PORT` — usually injected by Bonto automatically.
+2. Set the start command to `npm start` and add `GROQ_API_KEY` in the Bonto dashboard.
 3. Deploy — the app goes live at `https://yourapp.bonto.run`.
 
 ### Cloudflare Workers (alternative)
 
-The repository includes `wrangler.jsonc` for Cloudflare Workers deploys: static assets are served from `dist/` and `/api/*` is proxied to the externally hosted Python API.
+The repository includes `wrangler.jsonc` for Cloudflare Workers deploys: static assets are served from `public/` and `/api/*` is proxied to the externally hosted Python API.
 
 For Cloudflare, set the `API_BASE` variable (in the Workers dashboard or `wrangler.jsonc` vars) to the public URL of the machine running `python3 api/app.py`, with `GROQ_API_KEY` configured on that API host. Alternatively, deploy the Python API separately on any host and set `AI_TUTOR_API_URL` in the frontend host when it is on a different origin.
