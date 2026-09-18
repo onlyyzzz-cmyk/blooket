@@ -67,7 +67,10 @@
     };
     var textarea = options.textarea || null;
 
-    container.innerHTML = markup();
+    // Reuse static markup from the HTML if present; otherwise generate it.
+    if (!container.querySelector('.calc-keys')) {
+      container.innerHTML = markup();
+    }
     var el = {
       expr: container.querySelector('.calc-expr'),
       result: container.querySelector('.calc-result'),
