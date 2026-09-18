@@ -15,6 +15,7 @@
   };
   var escapeHtml = function (value) { return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
   var Api = window.AITutorApi;
+  var Calculator = window.AITutorCalculator;
 
   function markdown(text) {
     return escapeHtml(text)
@@ -50,6 +51,14 @@
     var preview = root.querySelector('.input-bar-preview');
     var previewImage = preview.querySelector('img');
     var calc = root.querySelector('.input-bar-calc');
+    var calcInstance = null;
+    root.querySelector('.chat-calc').addEventListener('click', function () {
+      calc.hidden = !calc.hidden;
+      if (!calc.hidden) {
+        if (!calcInstance) calcInstance = Calculator.create(calc, { textarea: input });
+        calcInstance.press('C');
+      }
+    });
     var chatList = root.querySelector('.sidebar-chats');
     var turns = [];
     var activeId = null;

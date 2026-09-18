@@ -24,8 +24,8 @@
     return '<div class="ai-tutor-float" aria-hidden="true"><div class="ai-tutor-mascot"><div class="ai-tutor-eyes"><div class="ai-tutor-eye"><span></span></div><div class="ai-tutor-eye"><span></span></div></div></div><span class="ai-tutor-label">AI Tutor</span></div>';
   }
 
-  function calculator() {
-    return '<div class="mini-calculator"><input class="mini-calc-input" placeholder="2 + 2 * 3" aria-label="Calculator expression"><button class="mini-calc-run" type="button">Calculate</button><output class="mini-calc-result"></output></div>';
+  function mountCalculator(container, textarea) {
+    window.AITutorCalculator.create(container, { textarea: textarea });
   }
 
   function mountMascot() {
