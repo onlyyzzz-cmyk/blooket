@@ -1341,6 +1341,36 @@ a { color: inherit; text-decoration: none; }
   40% { transform: scale(1); opacity: 1; }
 }
 
+/* Credits */
+.credits {
+  width: 100%;
+  max-width: 720px;
+  margin-bottom: 40px;
+  padding: 30px;
+  border: 1px solid rgba(99,102,241,0.12);
+  border-radius: 24px;
+  background: rgba(255,255,255,0.72);
+  box-shadow: 0 14px 40px rgba(79,70,229,0.06);
+}
+.credits-heading { margin-bottom: 20px; }
+.credits-heading h2 { font-size: clamp(24px, 4vw, 32px); letter-spacing: -1px; margin: 4px 0 8px; }
+.credits-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.credit-card { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 12px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); box-shadow: var(--shadow-sm); transition: transform .2s, box-shadow .2s; }
+.credit-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.credit-avatar { width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; border-radius: 12px; color: white; font-size: 11px; font-weight: 700; }
+.credit-indigo { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
+.credit-cyan { background: linear-gradient(135deg, #0891b2, #14b8a6); }
+.credit-amber { background: linear-gradient(135deg, #d97706, #f59e0b); }
+.credit-rose { background: linear-gradient(135deg, #e11d48, #f43f5e); }
+.credit-emerald { background: linear-gradient(135deg, #059669, #34d399); }
+.credit-sky { background: linear-gradient(135deg, #0284c7, #38bdf8); }
+.credit-founder { border-color: rgba(99,102,241,0.45); background: linear-gradient(135deg, rgba(238,242,255,0.9), rgba(255,255,255,0.9)); box-shadow: 0 6px 18px rgba(99,102,241,0.14); }
+.credit-card div { display: flex; flex-direction: column; min-width: 0; }
+.credit-card strong { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.credit-card span:not(.credit-avatar) { margin-top: 3px; color: var(--text-muted); font-size: 10px; white-space: nowrap; }
+.chat-title-group { display: flex; align-items: center; gap: 10px; }
+.session-chip { padding: 4px 9px; border: 1px solid var(--border); border-radius: 100px; color: var(--text-muted); background: var(--bg); font-family: var(--mono); font-size: 10px; }
+
 /* Responsive */
 @media (max-width: 768px) {
   .chat-sidebar { display: none; }
@@ -1357,6 +1387,8 @@ a { color: inherit; text-decoration: none; }
   .converter-cats { gap: 3px; }
   .calculator { width: 260px; padding: 10px; }
   .partnerships { padding: 24px 18px; border-radius: 20px; }
+  .credits { padding: 24px 18px; border-radius: 20px; }
+  .credits-grid { grid-template-columns: repeat(2, 1fr); }
   .partnerships-heading { align-items: flex-start; }
   .partnerships-orbit { width: 52px; height: 52px; }
   .partnerships-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }

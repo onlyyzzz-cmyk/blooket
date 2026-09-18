@@ -144,7 +144,7 @@ async function handleApi(req, res, url) {
 
   const chatMatch = url.pathname.match(/^\/api\/chats(?:\/([^/]+))?$/);
   if (chatMatch) {
-    const id = chatMatch[1];
+    const id = chatMatch[1] || url.searchParams.get('id') || undefined;
     try {
       if (req.method === 'GET' && !id) {
         const chats = loadChats().sort((a, b) => b.updated - a.updated);
@@ -264,7 +264,7 @@ function serveStatic(res, pathname) {
     res.writeHead(200, { 'Content-Type': contentType });
     fs.createReadStream(filePath).pipe(res);
   } catch {
-    const fallback = path.join(distPath, pathname === '/chats.html' ? 'chats.html' : 'index.html');
+    const fallback = path.join(distPath, pathname === '/chats' || pathname === '/chats.html' ? 'chats.html' : 'index.html');
     try {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       fs.createReadStream(fallback).pipe(res);
