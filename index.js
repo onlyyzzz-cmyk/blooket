@@ -10,7 +10,7 @@ import Groq from 'groq-sdk';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT || process.env.API_PORT || 8787);
-const distPath = path.join(__dirname, 'dist');
+const publicPath = path.join(__dirname, 'public');
 const dataDir = process.env.DATA_DIR || path.join(__dirname, 'api', 'data');
 const chatsFile = path.join(dataDir, 'chats.json');
 const groq = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
@@ -144,7 +144,7 @@ async function handleApi(req, res, url) {
 
   const chatMatch = url.pathname.match(/^\/api\/chats(?:\/([^/]+))?$/);
   if (chatMatch) {
-    const id = chatMatch[1];
+    const id = chatMatch[1] || url.searchParams.get('id') || undefined;
     try {
       if (req.method === 'GET' && !id) {
         const chats = loadChats().sort((a, b) => b.updated - a.updated);
@@ -252,23 +252,34 @@ const MIME_TYPES = {
   '.ico': 'image/x-icon',
 };
 
+function sendHtmlFile(res, filePath) {
+  if (!fs.existsSync(filePath)) {
+    res.writeHead(503, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end('<!doctype html><html><body style="font-family:sans-serif;padding:40px"><h2>Frontend files are missing.</h2><p>The <code>public/</code> folder could not be found. Make sure the full repository is deployed.</p></body></html>');
+    return;
+  }
+  const stream = fs.createReadStream(filePath);
+  stream.on('error', () => { if (!res.headersSent) sendError(res, 500, 'Could not read the page.'); res.end(); });
+  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+  stream.pipe(res);
+}
+
 function serveStatic(res, pathname) {
   const requested = pathname === '/' ? 'index.html' : pathname.slice(1);
   const safePath = path.normalize(requested);
   if (safePath.startsWith('..') || path.isAbsolute(safePath)) return sendError(res, 403, 'Forbidden.');
-  const filePath = path.join(distPath, safePath);
+  const filePath = path.join(publicPath, safePath);
   try {
     const stats = fs.statSync(filePath);
     if (!stats.isFile()) throw new Error('Not a file');
     const contentType = MIME_TYPES[path.extname(filePath).toLowerCase()] || 'application/octet-stream';
+    const stream = fs.createReadStream(filePath);
+    stream.on('error', () => { if (!res.headersSent) sendError(res, 500, 'Could not read the file.'); res.end(); });
     res.writeHead(200, { 'Content-Type': contentType });
-    fs.createReadStream(filePath).pipe(res);
+    stream.pipe(res);
   } catch {
-    const fallback = path.join(distPath, pathname === '/chats.html' ? 'chats.html' : 'index.html');
-    try {
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      fs.createReadStream(fallback).pipe(res);
-    } catch { sendError(res, 404, 'Not found.'); }
+    const fallback = path.join(publicPath, pathname === '/chats' || pathname === '/chats.html' ? 'chats.html' : 'index.html');
+    sendHtmlFile(res, fallback);
   }
 }
 
@@ -293,6 +304,7 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(port, '0.0.0.0', () => {
   console.log(`AI Tutor server listening on 0.0.0.0:${port}`);
+  console.log(`Serving static files from: ${publicPath} (exists: ${fs.existsSync(path.join(publicPath, 'index.html'))})`);
 });
 server.keepAliveTimeout = 65_000;
 server.headersTimeout = 70_000;
