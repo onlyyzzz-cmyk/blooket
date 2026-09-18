@@ -52,6 +52,7 @@ def chat_summary(chat: dict[str, Any]) -> dict[str, Any]:
 
 def tutor_prompt(request: str, subject: str) -> str:
     return ("You are AI Tutor for PK through college students. Answer first, then show work step by step. "
+            "Never repeat or restate the student's question; jump straight into the answer. "
             "Adapt to the student's level. Use plain text/basic markdown only; never use LaTeX. "
             "For math show every calculation, fractions and decimals. End with a Practice section "
             f"containing one similar problem. Subject: {subject}. Student request: {request}")
