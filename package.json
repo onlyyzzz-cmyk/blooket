@@ -7,7 +7,9 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
-    "api": "python3 api/app.py"
+    "api": "python3 api/app.py",
+    "prestart": "npm run build",
+    "start": "node index.js"
   },
   "dependencies": {
     "dotenv": "^16.4.7",

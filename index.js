@@ -252,6 +252,18 @@ const MIME_TYPES = {
   '.ico': 'image/x-icon',
 };
 
+function sendHtmlFile(res, filePath) {
+  if (!fs.existsSync(filePath)) {
+    res.writeHead(503, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end('<!doctype html><html><body style="font-family:sans-serif;padding:40px"><h2>Frontend build is missing.</h2><p>The <code>dist/</code> folder was not created. Make sure the deploy runs <code>npm start</code> (which builds via the prestart hook) or <code>npm run build</code> first.</p></body></html>');
+    return;
+  }
+  const stream = fs.createReadStream(filePath);
+  stream.on('error', () => { if (!res.headersSent) sendError(res, 500, 'Could not read the page.'); res.end(); });
+  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+  stream.pipe(res);
+}
+
 function serveStatic(res, pathname) {
   const requested = pathname === '/' ? 'index.html' : pathname.slice(1);
   const safePath = path.normalize(requested);
@@ -261,14 +273,13 @@ function serveStatic(res, pathname) {
     const stats = fs.statSync(filePath);
     if (!stats.isFile()) throw new Error('Not a file');
     const contentType = MIME_TYPES[path.extname(filePath).toLowerCase()] || 'application/octet-stream';
+    const stream = fs.createReadStream(filePath);
+    stream.on('error', () => { if (!res.headersSent) sendError(res, 500, 'Could not read the file.'); res.end(); });
     res.writeHead(200, { 'Content-Type': contentType });
-    fs.createReadStream(filePath).pipe(res);
+    stream.pipe(res);
   } catch {
     const fallback = path.join(distPath, pathname === '/chats' || pathname === '/chats.html' ? 'chats.html' : 'index.html');
-    try {
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      fs.createReadStream(fallback).pipe(res);
-    } catch { sendError(res, 404, 'Not found.'); }
+    sendHtmlFile(res, fallback);
   }
 }
 
@@ -293,6 +304,7 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(port, '0.0.0.0', () => {
   console.log(`AI Tutor server listening on 0.0.0.0:${port}`);
+  console.log(`Serving static files from: ${distPath} (exists: ${fs.existsSync(path.join(distPath, 'index.html'))})`);
 });
 server.keepAliveTimeout = 65_000;
 server.headersTimeout = 70_000;

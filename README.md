@@ -46,6 +46,18 @@ The API remains usable without the key for health and model checks, but tutoring
 
 ## Production
 
-The Node build outputs static frontend assets to `dist/`. The repository includes `wrangler.jsonc` for Cloudflare Workers deploys: static assets are served from `dist/` and `/api/*` is proxied to the externally hosted Python API.
+### Bonto (recommended — one service for everything)
+
+The app runs as a single Node.js service via `node index.js`, which serves the API, static assets, and the extensionless `/chats` route together. Bonto auto-detects `package.json`, installs dependencies, runs `npm run build` (via the `prestart` hook), and starts the server.
+
+1. Create a project on [bonto.dev](https://bonto.dev) (or connect via Git push-to-deploy).
+2. Add the environment variables in the Bonto dashboard:
+   - `GROQ_API_KEY` — required for live tutoring responses.
+   - `PORT` — usually injected by Bonto automatically.
+3. Deploy — the app goes live at `https://yourapp.bonto.run`.
+
+### Cloudflare Workers (alternative)
+
+The repository includes `wrangler.jsonc` for Cloudflare Workers deploys: static assets are served from `dist/` and `/api/*` is proxied to the externally hosted Python API.
 
 For Cloudflare, set the `API_BASE` variable (in the Workers dashboard or `wrangler.jsonc` vars) to the public URL of the machine running `python3 api/app.py`, with `GROQ_API_KEY` configured on that API host. Alternatively, deploy the Python API separately on any host and set `AI_TUTOR_API_URL` in the frontend host when it is on a different origin.
