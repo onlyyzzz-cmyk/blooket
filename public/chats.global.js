@@ -272,7 +272,9 @@
           cacheChat(cached);
           Api.appendToChat(activeId, userTurn)
             .then(function () { return Api.appendToChat(activeId, answer); })
-            .catch(function () { showError('Chat saved on this device; server history is temporarily unavailable.'); })
+            .catch(function () {
+              // Local history is already cached; keep the chat usable without showing a server warning.
+            })
             .then(finish);
         } else {
           Api.createChat(activeSubject, turns).then(function (created) {
