@@ -2,7 +2,17 @@
   'use strict';
 
   var subjects = ['Math', 'English', 'Science', 'History', 'General'];
-  var subjectIcon = function (name) { return name === 'Math' ? '∕' : name === 'English' ? 'T' : name === 'Science' ? '⚗' : name === 'History' ? '◷' : 'i'; };
+  var iconPaths = {
+    math: '<line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>',
+    english: '<path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/>',
+    science: '<path d="M9 3h6"/><path d="M10 3v7.4a2 2 0 0 1-.6 1.4L5 15.2V17h14v-1.8l-4.4-3.4a2 2 0 0 1-.6-1.4V3"/><path d="M7 17l2 4"/><path d="M17 17l-2 4"/>',
+    history: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+    general: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  };
+  var subjectIcon = function (name) {
+    var key = name.toLowerCase();
+    return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (iconPaths[key] || iconPaths.general) + '</svg>';
+  };
   var escapeHtml = function (value) { return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
   var Api = window.AITutorApi;
 
