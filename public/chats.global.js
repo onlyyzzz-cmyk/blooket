@@ -18,7 +18,11 @@
     var key = name.toLowerCase();
     return '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (iconPaths[key] || iconPaths.general) + '</svg>';
   };
-  var escapeHtml = function (value) { return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+  var escapeHtml = function (value) { return String(value == null ? '' : value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
+  var imageMarkup = function (src) {
+    if (typeof src !== 'string' || !src.startsWith('data:image/')) return '';
+    return '<img class="msg-image" src="' + src.replace(/"/g, '&quot;') + '" alt="Uploaded homework" loading="lazy">';
+  };
   var Api = window.AITutorApi;
   var Calculator = window.AITutorCalculator;
 
@@ -121,7 +125,7 @@
       messages.innerHTML = turns.length === 0 && !loading
         ? '<div class="chat-empty-state"><div class="empty-icon">✦</div><h3>Ask me anything</h3><p>Math, English, Science, History, or General — I will break it down step by step.</p></div>'
         : turns.map(function (turn) {
-            return '<div class="msg ' + turn.role + '"><div class="msg-avatar">' + (turn.role === 'user' ? 'You' : 'AI') + '</div><div class="msg-body">' + markdown(turn.content) + '</div></div>';
+            return '<div class="msg ' + turn.role + '"><div class="msg-avatar">' + (turn.role === 'user' ? 'You' : 'AI') + '</div><div class="msg-body">' + imageMarkup(turn.image) + markdown(turn.content) + '</div></div>';
           }).join('') + (loading ? '<div class="msg assistant"><div class="msg-avatar">AI</div><div class="msg-body thinking">•••</div></div>' : '');
       messages.scrollTop = messages.scrollHeight;
     };
@@ -248,11 +252,16 @@
         root.querySelectorAll('[data-subject]').forEach(function (b) { b.classList.toggle('active', b.dataset.subject === activeSubject); });
       }
       pending = null;
-      var userTurn = { role: 'user', content: prompt || 'Please read and explain the attached homework image.' };
+      var sentImage = image || pendingImage || previewImage.src;
+      var selectedModelInfo = models.find(function (model) { return model.id === selectedModel; });
+      if (sentImage && selectedModelInfo && !selectedModelInfo.supportsImages) {
+        showError('This model cannot view images. Switch to Qwen 3.8 27B, then send the photo again.');
+        return;
+      }
+      var userTurn = { role: 'user', content: prompt || 'Please read and explain the attached homework image.', image: sentImage || '' };
       var history = turns.slice(-6);
       turns = turns.concat([userTurn]);
       input.value = '';
-      var sentImage = image || pendingImage || previewImage.src;
       image = '';
       preview.hidden = true;
       renderMessages(true);
@@ -286,6 +295,7 @@
               created: Math.floor(Date.now() / 1000),
               updated: Math.floor(Date.now() / 1000),
             };
+            chat.messages = turns.slice();
             activeId = chat.id;
             cacheChat(chat);
             updateSessionUrl(chat.id);

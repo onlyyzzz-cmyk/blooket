@@ -241,7 +241,10 @@ async function handleApi(req, res, url) {
       const modelInfo = AVAILABLE_MODELS.find((model) => model.id === chosenModel);
       const userContent = [{ type: 'text', text: `${TUTOR_PROMPT}\n\nThe student is focusing on ${body.subject || 'General'}.\n\nStudent question: ${cleanPrompt || 'Please read and explain the attached homework image.'}` }];
       const hasImage = typeof body.image === 'string' && body.image.startsWith('data:image/');
-      if (hasImage && modelInfo?.supportsImages) userContent.push({ type: 'image_url', image_url: { url: body.image } });
+      if (hasImage && !modelInfo?.supportsImages) {
+        return sendError(res, 400, 'This model cannot view images. Switch to Qwen 3.8 27B and send the photo again.');
+      }
+      if (hasImage) userContent.push({ type: 'image_url', image_url: { url: body.image } });
 
       const messages = Array.isArray(body.history)
         ? body.history.slice(-6).filter((turn) => turn && ['user', 'assistant'].includes(turn.role) && typeof turn.content === 'string').map((turn) => ({ role: turn.role, content: turn.content }))

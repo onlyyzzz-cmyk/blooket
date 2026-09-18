@@ -145,10 +145,13 @@ class ApiHandler(BaseHTTPRequestHandler):
             history = data.get("history", []) if isinstance(data.get("history"), list) else []
             messages = [{"role": turn["role"], "content": turn["content"]} for turn in history[-6:] if isinstance(turn, dict) and turn.get("role") in ("user", "assistant") and isinstance(turn.get("content"), str)]
             content: list[dict[str, Any]] = [{"type": "text", "text": tutor_prompt(prompt or "Please explain the attached homework image.", str(data.get("subject", "General")))}]
+            model = next((item for item in MODELS if item["id"] == str(data.get("model", ""))), MODELS[0])
+            if image.startswith("data:image/") and not model.get("supportsImages"):
+                return self.send_json({"error": "This model cannot view images. Switch to Qwen 3.8 27B and send the photo again."}, 400)
             if image.startswith("data:image/"):
                 content.append({"type": "image_url", "image_url": {"url": image}})
             messages.append({"role": "user", "content": content})
-            result = call_groq(messages, str(data.get("model", "")) or MODELS[0]["id"])
+            result = call_groq(messages, model["id"])
             return self.send_json(result, 200 if "answer" in result else 502)
         if path == "/api/chats":
             chat_id = query.removeprefix("id=") if query.startswith("id=") else ""
