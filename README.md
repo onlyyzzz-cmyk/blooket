@@ -46,4 +46,6 @@ The API remains usable without the key for health and model checks, but tutoring
 
 ## Production
 
-The Node build outputs static frontend assets to `dist/`. Deploy the Python API separately with Python 3 and `python3 api/app.py` (or the equivalent process command for the host), with `GROQ_API_KEY` configured server-side. Set `AI_TUTOR_API_URL` in the frontend host when the Python API is on a different origin.
+The Node build outputs static frontend assets to `dist/`. The repository includes `wrangler.jsonc` for Cloudflare Workers deploys: static assets are served from `dist/` and `/api/*` is proxied to the externally hosted Python API.
+
+For Cloudflare, set the `API_BASE` variable (in the Workers dashboard or `wrangler.jsonc` vars) to the public URL of the machine running `python3 api/app.py`, with `GROQ_API_KEY` configured on that API host. Alternatively, deploy the Python API separately on any host and set `AI_TUTOR_API_URL` in the frontend host when it is on a different origin.
