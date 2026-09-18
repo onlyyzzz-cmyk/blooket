@@ -192,7 +192,7 @@
       });
     });
     root.querySelector('.new-chat-btn').addEventListener('click', function () {
-      activeId = null; turns = []; input.value = '';
+      activeId = null; turns = []; input.value = ''; image = ''; preview.hidden = true; previewImage.removeAttribute('src');
       root.querySelector('h2').textContent = 'New Chat';
       updateSessionUrl(newSessionId());
       renderMessages();
@@ -206,7 +206,7 @@
       reader.onload = function () { image = String(reader.result); previewImage.src = image; preview.hidden = false; };
       reader.readAsDataURL(file);
     });
-    preview.querySelector('button').addEventListener('click', function () { image = ''; preview.hidden = true; });
+    preview.querySelector('button').addEventListener('click', function () { image = ''; preview.hidden = true; previewImage.removeAttribute('src'); });
     root.querySelector('.model-trigger').addEventListener('click', function () {
       var dropdown = root.querySelector('.model-dropdown');
       dropdown.hidden = !dropdown.hidden;
@@ -252,7 +252,7 @@
         root.querySelectorAll('[data-subject]').forEach(function (b) { b.classList.toggle('active', b.dataset.subject === activeSubject); });
       }
       pending = null;
-      var sentImage = image || pendingImage || previewImage.src;
+      var sentImage = image || pendingImage || (!preview.hidden ? previewImage.src : '');
       var selectedModelInfo = models.find(function (model) { return model.id === selectedModel; });
       if (sentImage && selectedModelInfo && !selectedModelInfo.supportsImages) {
         showError('This model cannot view images. Switch to Qwen 3.8 27B, then send the photo again.');
@@ -261,15 +261,19 @@
       var userTurn = { role: 'user', content: prompt || 'Please read and explain the attached homework image.', image: sentImage || '' };
       var history = turns.slice(-6);
       turns = turns.concat([userTurn]);
+      var typedPrompt = prompt;
       input.value = '';
       image = '';
       preview.hidden = true;
+      previewImage.removeAttribute('src');
       renderMessages(true);
       Api.askTutor({ prompt: prompt, image: sentImage, subject: activeSubject, model: selectedModel, history: history }).then(function (result) {
         if (result.error) {
           turns = turns.slice(0, -1);
           renderMessages();
           showError(Api.errorMessage(result, 'Could not connect to the tutor.'));
+          // Give the student their text back so they can retry without retyping.
+          input.value = typedPrompt || '';
           return;
         }
         var answer = { role: 'assistant', content: result.answer };
