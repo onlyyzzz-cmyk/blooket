@@ -72,7 +72,8 @@ function patch(file, containerId) {
     : '<textarea class="input-textarea"';
   const j = src.indexOf(endMarker, i);
   if (j === -1) throw new Error('end marker not found in ' + file);
-  const replacement = startMarker + calcEscaped;
+  // The marker includes the calculator container's opening tag, so close that wrapper after the generated calculator.
+  const replacement = startMarker + calcEscaped + '</div>';
   src = src.slice(0, i) + replacement + src.slice(j);
   fs.writeFileSync(file, src);
   console.log('patched', file);
@@ -85,10 +86,11 @@ patch('public/main.global.js', 'input-card-calc');
 for (const file of ['public/chats.global.js', 'public/main.global.js']) {
   const src = fs.readFileSync(file, 'utf8');
   const id = file.includes('chats') ? 'input-bar-calc' : 'input-card-calc';
-  const i = src.indexOf(id);
+  const markerIndex = src.indexOf(id);
+  const i = src.lastIndexOf('<div', markerIndex);
   const t = file.includes('chats')
-    ? src.indexOf('<div class="input-bar-row"', i)
-    : src.indexOf('<textarea class="input-textarea"', i);
+    ? src.indexOf('<div class="input-bar-row"', markerIndex)
+    : src.indexOf('<textarea class="input-textarea"', markerIndex);
   const block = src.slice(i, t);
   const opens = (block.match(/<div/g) || []).length;
   const closes = (block.match(/<\/div>/g) || []).length;
