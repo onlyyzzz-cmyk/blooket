@@ -70,20 +70,24 @@ def tutor_prompt(request: str, subject: str) -> str:
             "Never repeat or restate the student's question; jump straight into the answer. "
             "Adapt to the student's level. Use plain text/basic markdown only; never use LaTeX. "
             "For math show every calculation, fractions and decimals. End with a Practice section "
-            f"containing one similar problem. Subject: {subject}. Student request: {request}")
+            f"containing one similar problem. Keep this focused micro-lesson under 250 words. "
+            f"Subject: {subject}. Student request: {request}")
 
 
 def call_groq(messages: list[dict[str, Any]], model: str) -> dict[str, str]:
     key = os.getenv("GROQ_API_KEY", "")
     if not key:
         return {"error": "Groq is not configured. Add GROQ_API_KEY in the environment."}
-    payload = json.dumps({"model": model, "messages": messages, "temperature": 0.35, "max_tokens": 1200}).encode()
+    payload = json.dumps({"model": model, "messages": messages, "temperature": 0.35, "max_tokens": 700}).encode()
     request = Request("https://api.groq.com/openai/v1/chat/completions", data=payload, headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"}, method="POST")
     try:
         with urlopen(request, timeout=60) as response:
             result = json.loads(response.read().decode())
         answer = result.get("choices", [{}])[0].get("message", {}).get("content")
-        return {"answer": answer} if isinstance(answer, str) and answer.strip() else {"error": "Groq did not return an answer. Check the API key and model."}
+        if isinstance(answer, str) and answer.strip():
+            limited = " ".join(answer.strip().split()[:240])
+            return {"answer": limited}
+        return {"error": "Groq did not return an answer. Check the API key and model."}
     except (HTTPError, URLError, TimeoutError, json.JSONDecodeError, OSError):
         return {"error": "The AI service could not be reached. Check the API key and model."}
 

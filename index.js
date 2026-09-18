@@ -142,7 +142,8 @@ CRITICAL RULES:
 6. For counting/combinatorics, show systematic listing, groups, patterns, combinations (nCr), and permutations (nPr).
 7. For division, show fraction form AND decimal form.
 8. End with a PRACTICE section: one similar problem at the same difficulty for the student to try.
-9. Keep answers concise but complete.`;
+9. Write one focused micro-lesson. Keep every response under 250 words so it is easy to read.
+10. Keep answers concise but complete.`;
 
 async function handleApi(req, res, url) {
   const headers = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type' };
@@ -246,9 +247,12 @@ async function handleApi(req, res, url) {
         ? body.history.slice(-6).filter((turn) => turn && ['user', 'assistant'].includes(turn.role) && typeof turn.content === 'string').map((turn) => ({ role: turn.role, content: turn.content }))
         : [];
       messages.push({ role: 'user', content: userContent });
-      const completion = await groq.chat.completions.create({ model: chosenModel, messages, temperature: 0.35, max_tokens: 1200 });
+      const completion = await groq.chat.completions.create({ model: chosenModel, messages, temperature: 0.35, max_tokens: 700 });
       const answer = completion.choices[0]?.message?.content;
-      sendJson(res, 200, { answer: typeof answer === 'string' ? answer : 'I could not create an explanation this time.' }, headers);
+      const limitedAnswer = typeof answer === 'string'
+        ? answer.trim().split(/\s+/).slice(0, 240).join(' ')
+        : 'I could not create an explanation this time.';
+      sendJson(res, 200, { answer: limitedAnswer }, headers);
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
