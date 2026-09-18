@@ -93,7 +93,29 @@
     }
     var models = Api.DEFAULT_MODELS;
     var selectedModel = models[0].id;
-
+    var localChatsKey = 'ai-tutor-local-chats';
+    var readLocalChats = function () {
+      try {
+        var saved = JSON.parse(localStorage.getItem(localChatsKey) || '[]');
+        return Array.isArray(saved) ? saved : [];
+      } catch (e) { return []; }
+    };
+    var writeLocalChats = function (chats) {
+      try { localStorage.setItem(localChatsKey, JSON.stringify(chats.slice(-50))); } catch (e) { /* storage is optional */ }
+    };
+    var cacheChat = function (chat) {
+      if (!chat || !chat.id) return;
+      var chats = readLocalChats().filter(function (item) { return item.id !== chat.id; });
+      writeLocalChats(chats.concat([chat]));
+    };
+    var getLocalChat = function (id) {
+      return readLocalChats().find(function (chat) { return chat.id === id; }) || null;
+    };
+    var mergeWithLocalChat = function (chat, id) {
+      var local = getLocalChat(id) || getLocalChat('local-' + id);
+      if (!chat) return local;
+      return local && Array.isArray(local.messages) && local.messages.length > (chat.messages || []).length ? local : chat;
+    };
     var showError = function (message) { errorBox.textContent = message; errorBox.hidden = !message; };
     var renderMessages = function (loading) {
       messages.innerHTML = turns.length === 0 && !loading
@@ -110,11 +132,24 @@
           }).join('')
         : '<p class="empty-chats">No chats yet.</p>';
     };
-    var refreshChats = function () { return Api.listChats().then(renderChats); };
+    var refreshChats = function () {
+      return Api.listChats().then(function (serverChats) {
+        var localChats = readLocalChats();
+        var merged = serverChats.slice();
+        localChats.forEach(function (local) {
+          if (!merged.some(function (chat) { return chat.id === local.id; })) {
+            merged.push({ id: local.id, title: local.title, subject: local.subject, created: local.created, updated: local.updated });
+          }
+        });
+        merged.sort(function (a, b) { return (b.updated || 0) - (a.updated || 0); });
+        renderChats(merged);
+      });
+    };
 
     refreshChats().then(function () {
       if (!requestedSession) return;
       return Api.getChat(requestedSession).then(function (existing) {
+        existing = mergeWithLocalChat(existing, requestedSession);
         if (!existing) return;
         activeId = existing.id;
         updateSessionUrl(existing.id);
@@ -183,6 +218,7 @@
       var open = target.closest('[data-open]');
       if (open) {
         Api.getChat(open.dataset.open || '').then(function (chat) {
+          chat = mergeWithLocalChat(chat, open.dataset.open || '');
           if (!chat) return;
           activeId = chat.id;
           updateSessionUrl(chat.id);
@@ -231,13 +267,26 @@
         turns = turns.concat([answer]);
         renderMessages();
         var finish = function () { refreshChats(); };
-        if (activeId) {
-          Api.appendToChat(activeId, userTurn);
-          Api.appendToChat(activeId, answer);
-          finish();
+        if (activeId && activeId.indexOf('local-') !== 0) {
+          var cached = { id: activeId, title: turns[0].content.slice(0, 60), subject: activeSubject, messages: turns.slice(), updated: Math.floor(Date.now() / 1000) };
+          cacheChat(cached);
+          Api.appendToChat(activeId, userTurn)
+            .then(function () { return Api.appendToChat(activeId, answer); })
+            .catch(function () { showError('Chat saved on this device; server history is temporarily unavailable.'); })
+            .then(finish);
         } else {
           Api.createChat(activeSubject, turns).then(function (created) {
-            if (created) { activeId = created.id; updateSessionUrl(created.id); }
+            var chat = created || {
+              id: 'local-' + sessionId,
+              title: turns[0].content.slice(0, 60),
+              subject: activeSubject,
+              messages: turns.slice(),
+              created: Math.floor(Date.now() / 1000),
+              updated: Math.floor(Date.now() / 1000),
+            };
+            activeId = chat.id;
+            cacheChat(chat);
+            updateSessionUrl(chat.id);
             finish();
           });
         }

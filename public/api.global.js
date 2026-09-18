@@ -77,11 +77,14 @@
   }
 
   function appendToChat(id, turn) {
-    fetch(apiPath('/api/chats?id=' + encodeURIComponent(id)), {
+    return fetch(apiPath('/api/chats?id=' + encodeURIComponent(id)), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ add: turn }),
-    }).catch(function () { /* ignore network errors during save */ });
+    }).then(function (response) {
+      if (!response.ok) throw new Error('Chat history save failed (' + response.status + ').');
+      return readJson(response);
+    });
   }
 
   function deleteChat(id) {

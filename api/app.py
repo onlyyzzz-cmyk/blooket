@@ -15,6 +15,8 @@ HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "8000"))
 DATA_FILE = Path(__file__).parent / "data" / "chats.json"
 CHAT_LOCK = Lock()
+IN_MEMORY_CHATS: list[dict[str, Any]] = []
+STORAGE_UNAVAILABLE = False
 MODELS = [
     {"id": "qwen/qwen3.8-27b", "name": "Qwen 3.8 27B", "provider": "Alibaba", "tier": "balanced", "supportsImages": True},
     {"id": "openai/gpt-oss-120b", "name": "GPT OSS 120B", "provider": "OpenAI", "tier": "powerful", "supportsImages": False},
@@ -25,20 +27,33 @@ MODELS = [
 
 
 def load_chats() -> list[dict[str, Any]]:
+    if STORAGE_UNAVAILABLE:
+        return IN_MEMORY_CHATS
     try:
         with DATA_FILE.open(encoding="utf-8") as file:
             value = json.load(file)
-        return value if isinstance(value, list) else []
+        if isinstance(value, list):
+            IN_MEMORY_CHATS[:] = value
+            return value
     except (FileNotFoundError, json.JSONDecodeError, OSError):
-        return []
+        pass
+    return IN_MEMORY_CHATS
 
 
 def save_chats(chats: list[dict[str, Any]]) -> None:
-    DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
-    temporary = DATA_FILE.with_suffix(".tmp")
-    with temporary.open("w", encoding="utf-8") as file:
-        json.dump(chats[-200:], file)
-    temporary.replace(DATA_FILE)
+    global STORAGE_UNAVAILABLE
+    snapshot = chats[-200:]
+    IN_MEMORY_CHATS[:] = snapshot
+    try:
+        DATA_FILE.parent.mkdir(parents=True, exist_ok=True)
+        temporary = DATA_FILE.with_suffix(".tmp")
+        with temporary.open("w", encoding="utf-8") as file:
+            json.dump(snapshot, file)
+        temporary.replace(DATA_FILE)
+        STORAGE_UNAVAILABLE = False
+    except OSError as error:
+        STORAGE_UNAVAILABLE = True
+        print(f"Chat file unavailable; using in-memory history: {error}")
 
 
 def chat_summary(chat: dict[str, Any]) -> dict[str, Any]:

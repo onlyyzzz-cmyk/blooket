@@ -13,6 +13,8 @@ const port = Number(process.env.PORT || process.env.API_PORT || 8787);
 const publicPath = path.join(__dirname, 'public');
 const dataDir = process.env.DATA_DIR || path.join(__dirname, 'api', 'data');
 const chatsFile = path.join(dataDir, 'chats.json');
+let inMemoryChats = [];
+let chatStorageUnavailable = false;
 const groq = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_KEY }) : null;
 
 const VALID_SUBJECTS = ['Math', 'English', 'Science', 'History', 'General'];
@@ -39,15 +41,31 @@ setInterval(() => {
 }, 5 * 60 * 1000);
 
 function loadChats() {
+  if (chatStorageUnavailable) return inMemoryChats;
   try {
     const parsed = JSON.parse(fs.readFileSync(chatsFile, 'utf8'));
-    return Array.isArray(parsed) ? parsed : [];
-  } catch { return []; }
+    if (Array.isArray(parsed)) {
+      inMemoryChats = parsed;
+      return parsed;
+    }
+  } catch (error) {
+    // Bonto can temporarily provide a read-only or reset filesystem. Keep the
+    // current session usable instead of making the API appear to save and lose chats.
+  }
+  return inMemoryChats;
 }
 
 function saveChats(chats) {
-  try { fs.writeFileSync(chatsFile, JSON.stringify(chats.slice(-200))); }
-  catch (error) { console.error('Failed to save chats:', error); }
+  const snapshot = chats.slice(-200);
+  inMemoryChats = snapshot;
+  try {
+    fs.mkdirSync(dataDir, { recursive: true });
+    fs.writeFileSync(chatsFile, JSON.stringify(snapshot));
+    chatStorageUnavailable = false;
+  } catch (error) {
+    chatStorageUnavailable = true;
+    console.error('Chat file unavailable; using in-memory history:', error.message);
+  }
 }
 
 function chatSummary(chat) {
