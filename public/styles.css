@@ -276,6 +276,7 @@ a { color: inherit; text-decoration: none; }
 .chip:hover { border-color: var(--primary); color: var(--primary); transform: translateY(-2px) perspective(400px) rotateX(5deg); box-shadow: 0 4px 12px rgba(99,102,241,0.15); }
 .chip.active { background: var(--primary); border-color: var(--primary); color: white; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(99,102,241,0.3); }
 .chip-icon { font-size: 14px; }
+.chip svg { flex: 0 0 auto; display: block; }
 .subject-chips.small .chip { padding: 5px 12px; font-size: 12px; }
 
 /* Input card */
