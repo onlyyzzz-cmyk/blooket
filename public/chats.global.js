@@ -34,9 +34,6 @@
       .replace(/\n/g, '<br>');
   }
 
-  function calcMarkup() {
-    return '<div class="mini-calculator"><input class="mini-calc-input" placeholder="2 + 2 * 3"><button class="mini-calc-run" type="button">Calculate</button><output class="mini-calc-result"></output></div>';
-  }
 
   function newSessionId() {
     return (globalThis.crypto && globalThis.crypto.randomUUID) ? globalThis.crypto.randomUUID()
@@ -149,19 +146,6 @@
       reader.readAsDataURL(file);
     });
     preview.querySelector('button').addEventListener('click', function () { image = ''; preview.hidden = true; });
-    root.querySelector('.chat-calc').addEventListener('click', function () {
-      calc.hidden = !calc.hidden;
-      if (!calc.hidden) {
-        calc.innerHTML = calcMarkup();
-        calc.querySelector('.mini-calc-run').addEventListener('click', function () {
-          var raw = calc.querySelector('.mini-calc-input').value;
-          try {
-            if (!/^[0-9+*/().%\s-]+$/.test(raw)) throw new Error('Numbers and operators only');
-            calc.querySelector('output').textContent = String(Function('return (' + raw + ')')());
-          } catch (e) { calc.querySelector('output').textContent = 'Invalid expression'; }
-        });
-      }
-    });
     root.querySelector('.model-trigger').addEventListener('click', function () {
       var dropdown = root.querySelector('.model-dropdown');
       dropdown.hidden = !dropdown.hidden;
