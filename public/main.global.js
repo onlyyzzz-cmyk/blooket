@@ -99,9 +99,19 @@
     });
     form.addEventListener('submit', function (event) {
       event.preventDefault();
-      if (!textarea.value.trim() && !image) { error.textContent = 'Type a question or add a photo.'; error.hidden = false; return; }
-      sessionStorage.setItem('ai-tutor-pending', JSON.stringify({ prompt: textarea.value.trim(), image: image, subject: selectedSubject }));
-      window.location.href = '/chats';
+      var prompt = textarea.value.trim();
+      if (!prompt && !image) { error.textContent = 'Type a question or add a photo.'; error.hidden = false; return; }
+      var handoff = { prompt: prompt, image: image, subject: selectedSubject };
+      try {
+        sessionStorage.setItem('ai-tutor-pending', JSON.stringify(handoff));
+        window.location.href = '/chats';
+      } catch (storageError) {
+        // Safari private mode can block sessionStorage; preserve typed text in the URL as a fallback.
+        var query = new URLSearchParams();
+        if (prompt) query.set('prompt', prompt);
+        if (selectedSubject) query.set('subject', selectedSubject);
+        window.location.href = '/chats.html' + (query.toString() ? '?' + query.toString() : '');
+      }
     });
   }
 

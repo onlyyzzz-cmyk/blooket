@@ -64,10 +64,20 @@
     var chatList = root.querySelector('.sidebar-chats');
     var turns = [];
     var activeId = null;
-    var requestedSession = new URLSearchParams(window.location.search).get('session');
+    var routeParams = new URLSearchParams(window.location.search);
+    var requestedSession = routeParams.get('session');
     var pending = null;
     try { pending = JSON.parse(sessionStorage.getItem('ai-tutor-pending') || 'null'); } catch (e) { pending = null; }
-    if (pending) sessionStorage.removeItem('ai-tutor-pending');
+    // Safari private mode and embedded previews may block sessionStorage. The home page
+    // also puts the text in the URL, so the handoff still works in those environments.
+    if (!pending) {
+      var routePrompt = routeParams.get('prompt');
+      var routeSubject = routeParams.get('subject');
+      if (routePrompt || routeSubject) pending = { prompt: routePrompt || '', subject: routeSubject || 'General', image: '' };
+    }
+    if (pending) {
+      try { sessionStorage.removeItem('ai-tutor-pending'); } catch (e) { /* private-mode storage may be read-only */ }
+    }
     var sessionChip = root.querySelector('.session-chip');
     var updateSessionUrl = function (id) {
       sessionChip.textContent = 'Session ' + id.slice(0, 8);
@@ -75,8 +85,12 @@
     };
     var sessionId = requestedSession || newSessionId();
     updateSessionUrl(sessionId);
-    var activeSubject = 'General';
-    var image = '';
+    var activeSubject = pending && subjects.indexOf(pending.subject) !== -1 ? pending.subject : 'General';
+    var image = pending && pending.image ? pending.image : '';
+    if (pending && pending.prompt) {
+      input.value = pending.prompt;
+      input.focus();
+    }
     var models = Api.DEFAULT_MODELS;
     var selectedModel = models[0].id;
 
@@ -121,11 +135,16 @@
     });
 
     root.querySelectorAll('[data-subject]').forEach(function (button) {
+      button.classList.toggle('active', button.dataset.subject === activeSubject);
       button.addEventListener('click', function () {
         activeSubject = button.dataset.subject;
         root.querySelectorAll('[data-subject]').forEach(function (b) { b.classList.toggle('active', b === button); });
       });
     });
+    if (image) {
+      previewImage.src = image;
+      preview.hidden = false;
+    }
     root.querySelectorAll('.suggestion-chip').forEach(function (button) {
       button.addEventListener('click', function () {
         var text = button.textContent;
