@@ -28,9 +28,16 @@ export default {
       });
     }
 
-    // Extensionless /chats route (backup in case HTML auto-handling misses it).
-    if (url.pathname === '/chats' || url.pathname === '/chats/') {
-      return env.ASSETS.fetch(new URL('/chats.html', url.origin));
+    // Extensionless routes (backup in case HTML auto-handling misses them).
+    const docRoutes = {
+      '/chats': '/chats.html',
+      '/terms': '/terms.html',
+      '/privacy': '/privacy.html',
+      '/updates': '/updates.html',
+    };
+    const barePath = url.pathname.replace(/\/$/, '');
+    if (docRoutes[barePath]) {
+      return env.ASSETS.fetch(new URL(docRoutes[barePath], url.origin));
     }
 
     return env.ASSETS.fetch(request);

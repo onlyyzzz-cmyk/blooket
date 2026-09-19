@@ -304,7 +304,14 @@ function serveStatic(res, pathname) {
     res.writeHead(200, { 'Content-Type': contentType });
     stream.pipe(res);
   } catch {
-    const fallback = path.join(publicPath, pathname === '/chats' || pathname === '/chats.html' ? 'chats.html' : 'index.html');
+    const fallback = path.join(
+      publicPath,
+      pathname === '/chats' || pathname === '/chats.html' ? 'chats.html'
+        : pathname === '/terms' || pathname === '/terms.html' ? 'terms.html'
+        : pathname === '/privacy' || pathname === '/privacy.html' ? 'privacy.html'
+        : pathname === '/updates' || pathname === '/updates.html' ? 'updates.html'
+        : 'index.html',
+    );
     sendHtmlFile(res, fallback);
   }
 }
