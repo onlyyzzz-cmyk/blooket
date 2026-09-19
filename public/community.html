@@ -8,6 +8,7 @@
     <title>Community — AITutor</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="stylesheet" href="/styles.css?v=16" />
+    <script defer src="/auth.global.js?v=16"></script>
   </head>
   <body class="doc-page">
     <header class="doc-header">
@@ -27,6 +28,7 @@
         <p class="doc-updated">Talk with other students. Mods <span class="badge badge-mod">Mod</span> and admins <span class="badge badge-admin">Admin</span> keep this space safe.</p>
 
         <div id="community-status" class="community-status"></div>
+        <div id="community-identity" class="community-hint" hidden></div>
 
         <div class="community-board" id="community-messages" aria-live="polite"></div>
 
@@ -99,6 +101,32 @@
         if (stored.name) nameInput.value = stored.name;
         try { localStorage.setItem('aitutor-community', JSON.stringify(stored)); } catch (error) { /* private mode */ }
 
+        // Prefer the signed-in Clerk account as identity, so Mod/Admin badges
+        // from approved applications follow the member across devices.
+        var identityEl = document.getElementById('community-identity');
+        function applyIdentity(id, name, isGuest) {
+          if (!id) return;
+          userId = id;
+          if (name && !nameInput.value) nameInput.value = name.slice(0, 32);
+          identityEl.hidden = false;
+          identityEl.textContent = isGuest ? '' : '✅ Signed in as ' + name + ' — your badges and roles follow your account.';
+        }
+        if (window.AITutorAuth) {
+          window.AITutorAuth.load().then(function (clerk) {
+            if (clerk && clerk.user) {
+              var displayName = clerk.user.firstName || clerk.user.username || 'Student';
+              applyIdentity(clerk.user.id, displayName, false);
+              stored.userId = userId;
+              stored.name = nameInput.value;
+              try { localStorage.setItem('aitutor-community', JSON.stringify(stored)); } catch (error) { /* private mode */ }
+            } else {
+              applyIdentity(userId, stored.name, true);
+            }
+          }).catch(function () { applyIdentity(userId, stored.name, true); });
+        } else {
+          applyIdentity(userId, stored.name, true);
+        }
+
         var myRole = 'member';
         var latestMessages = [];
 
@@ -133,19 +161,32 @@
           }).join('');
         }
 
-        function moderate(action, fields, done) {
-          fetch('/api/community/moderate', {
+        function postJson(url, payload) {
+          return fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(Object.assign({ moderatorId: userId }, fields, { action: action })),
-          })
-            .then(function (response) { return response.json(); })
+            body: JSON.stringify(payload),
+          }).then(function (response) {
+            return response.text().then(function (raw) {
+              var data;
+              try { data = JSON.parse(raw); } catch (error) { data = null; }
+              if (!data) {
+                // HTML 404/500 page → the running server predates the community feature.
+                throw new Error('The server does not have the community feature yet — the host needs to restart with the latest code.');
+              }
+              return { ok: response.ok, status: response.status, data: data };
+            });
+          });
+        }
+
+        function moderate(action, fields, done) {
+          postJson('/api/community/moderate', Object.assign({ moderatorId: userId }, fields, { action: action }))
             .then(function (result) {
-              if (result.error) { setStatus(result.error, true); }
-              else if (done) { done(); }
+              if (!result.ok && result.data.error) setStatus(result.data.error, true);
+              else if (done) done();
               load();
             })
-            .catch(function () { setStatus('Moderation action failed.', true); });
+            .catch(function (error) { setStatus(error.message, true); });
         }
 
         messagesEl.addEventListener('click', function (event) {
@@ -171,15 +212,23 @@
 
         function load() {
           fetch('/api/community')
-            .then(function (response) { return response.json(); })
+            .then(function (response) {
+              return response.text().then(function (raw) {
+                var data;
+                try { data = JSON.parse(raw); } catch (error) { data = null; }
+                if (!data) throw new Error('The server does not have the community feature yet — the host needs to restart with the latest code.');
+                return data;
+              });
+            })
             .then(function (data) {
               latestMessages = data.messages || [];
               var mine = latestMessages.filter(function (message) { return message.userId === userId; });
               myRole = mine.length ? mine[mine.length - 1].role : 'member';
               document.getElementById('mod-panel').hidden = myRole === 'member';
+              setStatus('');
               render();
             })
-            .catch(function () { setStatus('Could not load the community right now.', true); });
+            .catch(function (error) { setStatus(error.message || 'Could not load the community right now.', true); });
         }
 
         form.addEventListener('submit', function (event) {
@@ -188,19 +237,14 @@
           var name = nameInput.value.trim();
           if (!text || !name) return;
           try { stored.name = name; localStorage.setItem('aitutor-community', JSON.stringify(stored)); } catch (error) { /* private mode */ }
-          fetch('/api/community', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: userId, name: name, text: text }),
-          })
-            .then(function (response) { return response.json().then(function (data) { return { ok: response.ok, data: data }; }); })
+          postJson('/api/community', { userId: userId, name: name, text: text })
             .then(function (result) {
               if (!result.ok) { setStatus(result.data.error || 'Could not send your message.', true); return; }
               textInput.value = '';
               setStatus('');
               load();
             })
-            .catch(function () { setStatus('Could not send your message.', true); });
+            .catch(function (error) { setStatus(error.message || 'Could not send your message.', true); });
         });
 
         load();
