@@ -131,6 +131,22 @@ function rateLimit(req, res) {
   return true;
 }
 
+// Trim an AI answer toward the 250-word micro-lesson limit without cutting mid-sentence.
+// Words are only removed up to the last sentence end, so the lesson still reads naturally.
+const MAX_ANSWER_WORDS = 240;
+
+function limitToWords(text) {
+  const trimmed = String(text || '').trim();
+  if (!trimmed) return trimmed;
+  const words = trimmed.split(/\s+/);
+  if (words.length <= MAX_ANSWER_WORDS) return trimmed;
+  let kept = words.slice(0, MAX_ANSWER_WORDS).join(' ');
+  // Walk back to the last sentence-ending punctuation so we never cut a sentence in half.
+  const lastStop = Math.max(kept.lastIndexOf('. '), kept.lastIndexOf('! '), kept.lastIndexOf('? '));
+  if (lastStop > kept.length * 0.5) kept = kept.slice(0, lastStop + 1);
+  return kept.trim();
+}
+
 const TUTOR_PROMPT = `You are AI Tutor — a world-class tutor for students from PK through AP/IB/honors/college level. You are an expert in Math (counting, arithmetic, algebra, geometry, calculus, statistics, combinatorics), English/Language Arts, Science, History, and General topics.
 
 CRITICAL RULES:
@@ -258,9 +274,7 @@ async function handleApi(req, res, url) {
       messages.push({ role: 'user', content: userContent });
       const completion = await groq.chat.completions.create({ model: chosenModel, messages, temperature: 0.35, max_tokens: 700 });
       const answer = completion.choices[0]?.message?.content;
-      const limitedAnswer = typeof answer === 'string'
-        ? answer.trim().split(/\s+/).slice(0, 240).join(' ')
-        : 'I could not create an explanation this time.';
+      const limitedAnswer = typeof answer === 'string' ? limitToWords(answer) : 'I could not create an explanation this time.';
       sendJson(res, 200, { answer: limitedAnswer }, headers);
       return true;
     } catch (error) {

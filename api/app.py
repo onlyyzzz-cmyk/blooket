@@ -74,6 +74,25 @@ def tutor_prompt(request: str, subject: str) -> str:
             f"Subject: {subject}. Student request: {request}")
 
 
+MAX_ANSWER_WORDS = 240
+
+
+def limit_to_words(text: str) -> str:
+    """Trim toward the 250-word micro-lesson limit without cutting mid-sentence."""
+    trimmed = (text or "").strip()
+    if not trimmed:
+        return trimmed
+    words = trimmed.split()
+    if len(words) <= MAX_ANSWER_WORDS:
+        return trimmed
+    kept = " ".join(words[:MAX_ANSWER_WORDS])
+    # Walk back to the last sentence-ending punctuation so no sentence is cut in half.
+    last_stop = max(kept.rfind(". "), kept.rfind("! "), kept.rfind("? "))
+    if last_stop > len(kept) * 0.5:
+        kept = kept[: last_stop + 1]
+    return kept.strip()
+
+
 def call_groq(messages: list[dict[str, Any]], model: str) -> dict[str, str]:
     key = os.getenv("GROQ_API_KEY", "")
     if not key:
@@ -85,8 +104,7 @@ def call_groq(messages: list[dict[str, Any]], model: str) -> dict[str, str]:
             result = json.loads(response.read().decode())
         answer = result.get("choices", [{}])[0].get("message", {}).get("content")
         if isinstance(answer, str) and answer.strip():
-            limited = " ".join(answer.strip().split()[:240])
-            return {"answer": limited}
+            return {"answer": limit_to_words(answer)}
         return {"error": "Groq did not return an answer. Check the API key and model."}
     except (HTTPError, URLError, TimeoutError, json.JSONDecodeError, OSError):
         return {"error": "The AI service could not be reached. Check the API key and model."}
