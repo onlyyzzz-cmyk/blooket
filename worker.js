@@ -34,6 +34,8 @@ export default {
       '/terms': '/terms.html',
       '/privacy': '/privacy.html',
       '/updates': '/updates.html',
+      '/community': '/community.html',
+      '/forms': '/forms.html',
     };
     const barePath = url.pathname.replace(/\/$/, '');
     if (docRoutes[barePath]) {
