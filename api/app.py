@@ -3,10 +3,11 @@ from __future__ import annotations
 import json
 import os
 import secrets
+import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from threading import Lock
+from threading import Lock, Thread, Thread
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -211,6 +212,35 @@ class ApiHandler(BaseHTTPRequestHandler):
         return self.send_json({"ok": True})
 
 
+# Keep-alive pinger: hits our own /api/health endpoint on localhost so hosts
+# like Bonto that sleep idle single-instance apps see constant traffic and
+# never spin the service down. Disable with KEEP_ALIVE_DISABLED=1.
+KEEP_ALIVE_INTERVAL_SECONDS = 4 * 60
+
+
+def start_keep_alive(server: ThreadingHTTPServer) -> None:
+    if os.getenv("KEEP_ALIVE_DISABLED") == "1":
+        return
+
+    def ping() -> None:
+        try:
+            with urlopen(f"http://127.0.0.1:{server.server_address[1]}/api/health", timeout=10) as response:
+                print(f"[keep-alive] ping {response.status}")
+        except (URLError, OSError) as error:
+            print(f"[keep-alive] failed: {error}")
+
+    def loop() -> None:
+        while True:
+            time.sleep(KEEP_ALIVE_INTERVAL_SECONDS)
+            ping()
+
+    ping()
+    threading.Thread(target=loop, daemon=True, name="keep-alive").start()
+    print(f"[keep-alive] pinging every {KEEP_ALIVE_INTERVAL_SECONDS // 60} minutes")
+
+
 if __name__ == "__main__":
     print(f"AI Tutor Python API listening on http://{HOST}:{PORT}")
-    ThreadingHTTPServer((HOST, PORT), ApiHandler).serve_forever()
+    server = ThreadingHTTPServer((HOST, PORT), ApiHandler)
+    start_keep_alive(server)
+    server.serve_forever()

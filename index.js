@@ -367,6 +367,26 @@ const server = http.createServer(async (req, res) => {
 server.listen(port, '0.0.0.0', () => {
   console.log(`AI Tutor server listening on 0.0.0.0:${port}`);
   console.log(`Serving static files from: ${publicPath} (exists: ${fs.existsSync(path.join(publicPath, 'index.html'))})`);
+  startKeepAlive();
 });
 server.keepAliveTimeout = 65_000;
 server.headersTimeout = 70_000;
+
+// Keep-alive pinger: hits our own /api/health endpoint on localhost so hosts
+// like Bonto that sleep idle single-instance apps see constant traffic and
+// never spin the service down. Disable with KEEP_ALIVE_DISABLED=1.
+const KEEP_ALIVE_INTERVAL_MS = 4 * 60 * 1000;
+function startKeepAlive() {
+  if (process.env.KEEP_ALIVE_DISABLED === '1') return;
+  const url = `http://127.0.0.1:${port}/api/health`;
+  const ping = () => {
+    const req = http.get(url, (res) => {
+      res.resume();
+      console.log(`[keep-alive] ping ${res.statusCode}`);
+    });
+    req.on('error', (error) => console.error('[keep-alive] failed:', error.message));
+  };
+  ping();
+  setInterval(ping, KEEP_ALIVE_INTERVAL_MS);
+  console.log(`[keep-alive] pinging ${url} every ${KEEP_ALIVE_INTERVAL_MS / 60000} minutes`);
+}
