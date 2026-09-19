@@ -161,6 +161,12 @@ async function handleApi(req, res, url) {
     sendJson(res, 200, { models: AVAILABLE_MODELS }, headers);
     return true;
   }
+  if (url.pathname === '/api/config' && req.method === 'GET') {
+    sendJson(res, 200, {
+      clerkPublishableKey: process.env.VITE_CLERK_PUBLISHABLE_KEY || process.env.CLERK_PUBLISHABLE_KEY || '',
+    }, headers);
+    return true;
+  }
 
   const chatMatch = url.pathname.match(/^\/api\/chats(?:\/([^/]+))?$/);
   if (chatMatch) {
@@ -279,15 +285,18 @@ const MIME_TYPES = {
 };
 
 function sendHtmlFile(res, filePath) {
-  if (!fs.existsSync(filePath)) {
-    res.writeHead(503, { 'Content-Type': 'text/html; charset=utf-8' });
+  try {
+    let html = fs.readFileSync(filePath, 'utf8');
+    if (html.includes('__CLERK_PUBLISHABLE_KEY__')) {
+      const clerkKey = process.env.VITE_CLERK_PUBLISHABLE_KEY || process.env.CLERK_PUBLISHABLE_KEY || '';
+      html = html.split('__CLERK_PUBLISHABLE_KEY__').join(clerkKey);
+    }
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(html);
+  } catch {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     res.end('<!doctype html><html><body style="font-family:sans-serif;padding:40px"><h2>Frontend files are missing.</h2><p>The <code>public/</code> folder could not be found. Make sure the full repository is deployed.</p></body></html>');
-    return;
   }
-  const stream = fs.createReadStream(filePath);
-  stream.on('error', () => { if (!res.headersSent) sendError(res, 500, 'Could not read the page.'); res.end(); });
-  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-  stream.pipe(res);
 }
 
 function serveStatic(res, pathname) {
@@ -298,7 +307,12 @@ function serveStatic(res, pathname) {
   try {
     const stats = fs.statSync(filePath);
     if (!stats.isFile()) throw new Error('Not a file');
-    const contentType = MIME_TYPES[path.extname(filePath).toLowerCase()] || 'application/octet-stream';
+    const ext = path.extname(filePath).toLowerCase();
+    if (ext === '.html' || ext === '.htm') {
+      sendHtmlFile(res, filePath);
+      return;
+    }
+    const contentType = MIME_TYPES[ext] || 'application/octet-stream';
     const stream = fs.createReadStream(filePath);
     stream.on('error', () => { if (!res.headersSent) sendError(res, 500, 'Could not read the file.'); res.end(); });
     res.writeHead(200, { 'Content-Type': contentType });
@@ -310,6 +324,7 @@ function serveStatic(res, pathname) {
         : pathname === '/terms' || pathname === '/terms.html' ? 'terms.html'
         : pathname === '/privacy' || pathname === '/privacy.html' ? 'privacy.html'
         : pathname === '/updates' || pathname === '/updates.html' ? 'updates.html'
+        : pathname === '/sign-up' || pathname === '/sign-up.html' ? 'sign-up.html'
         : 'index.html',
     );
     sendHtmlFile(res, fallback);

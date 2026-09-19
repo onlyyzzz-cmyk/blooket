@@ -66,6 +66,35 @@
       }
     });
     var chatList = root.querySelector('.sidebar-chats');
+    // Clerk: show a Sign up button or the signed-in user button in the chat header.
+    fetch('/api/config').then(function (response) { return response.json(); }).catch(function () { return {}; }).then(function (config) {
+      window.__AITUTOR_CONFIG__ = config || {};
+      var auth = window.AITutorAuth;
+      if (!auth || !config || !config.clerkPublishableKey) return;
+      var headerRight = root.querySelector('.header-right');
+      if (!headerRight) return;
+      var signup = document.createElement('button');
+      signup.type = 'button';
+      signup.className = 'header-signup-btn';
+      signup.textContent = 'Sign up free';
+      signup.addEventListener('click', function () {
+        signup.disabled = true;
+        auth.openSignUp().then(function (opened) {
+          if (!opened) window.location.href = '/sign-up'; // Modal unavailable → full-page sign-up.
+          signup.disabled = false;
+        });
+      });
+      headerRight.insertBefore(signup, headerRight.firstChild);
+      auth.load().then(function (clerk) {
+        if (clerk && clerk.user) {
+          signup.remove();
+          var userPoint = document.createElement('div');
+          userPoint.className = 'header-user-button';
+          headerRight.insertBefore(userPoint, headerRight.firstChild);
+          clerk.mountUserButton(userPoint);
+        }
+      });
+    });
     var turns = [];
     var activeId = null;
     var routeParams = new URLSearchParams(window.location.search);

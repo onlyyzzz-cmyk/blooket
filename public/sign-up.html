@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f6f7fb" />
+    <meta name="description" content="Create your AITutor account — free sign up." />
+    <title>Sign up — AITutor</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/styles.css?v=15" />
+    <script defer src="/auth.global.js?v=15"></script>
+    <script defer src="/signup.global.js?v=15"></script>
+  </head>
+  <body class="doc-page">
+    <header class="doc-header">
+      <a href="/" class="landing-logo"><span class="logo-icon">✦</span><span class="logo-text">AITutor</span></a>
+      <nav class="doc-nav">
+        <a href="/" class="header-chats-link">Home</a>
+        <a href="/chats" class="header-chats-link">My Chats</a>
+      </nav>
+    </header>
+    <main class="doc-main">
+      <div class="doc-card auth-card">
+        <p class="doc-kicker"><span class="kicker-dot"></span> Free account</p>
+        <h1>Create your account</h1>
+        <p class="doc-updated">Save your chat history and pick up where you left off, on any device.</p>
+        <div id="clerk-signup" class="clerk-mount"></div>
+        <noscript><p>Enable JavaScript to sign up.</p></noscript>
+      </div>
+    </main>
+  </body>
+</html>

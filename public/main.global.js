@@ -26,6 +26,25 @@
     return '<div class="ai-tutor-float" aria-hidden="true"><div class="ai-tutor-mascot"><div class="ai-tutor-eyes"><div class="ai-tutor-eye"><span></span></div><div class="ai-tutor-eye"><span></span></div></div></div><span class="ai-tutor-label">AI Tutor</span></div>';
   }
 
+  var partners = [
+    { name: 'Khan Academy', desc: 'Free lessons & practice', url: 'https://www.khanacademy.org', tag: 'Learn', initials: 'KA', color: 'credit-indigo' },
+    { name: 'Wolfram Alpha', desc: 'Step-by-step math', url: 'https://www.wolframalpha.com', tag: 'Compute', initials: 'Wα', color: 'credit-rose' },
+    { name: 'Desmos', desc: 'Graphing calculator', url: 'https://www.desmos.com', tag: 'Visualize', initials: 'D', color: 'credit-emerald' },
+    { name: 'GeoGebra', desc: 'Interactive math tools', url: 'https://www.geogebra.org', tag: 'Explore', initials: 'G', color: 'credit-cyan' },
+    { name: 'Quizlet', desc: 'Flashcards & study sets', url: 'https://quizlet.com', tag: 'Memorize', initials: 'Q', color: 'credit-sky' },
+    { name: 'Groq', desc: 'Our AI inference engine', url: 'https://groq.com', tag: 'Powering', initials: 'Gq', color: 'credit-amber' },
+  ];
+
+  function partnerCardsMarkup() {
+    return partners.map(function (partner, index) {
+      return '<a class="partner-card" href="' + partner.url + '" target="_blank" rel="noopener" style="--partner-index:' + index + '">'
+        + '<span class="partner-icon credit-avatar ' + partner.color + ' partner-icon-text">' + partner.initials + '</span>'
+        + '<span class="partner-info"><span class="partner-name">' + partner.name + '</span><span class="partner-desc">' + partner.desc + '</span><span class="partner-tag">' + partner.tag + '</span></span>'
+        + '<span class="partner-arrow">↗</span>'
+        + '</a>';
+    }).join('');
+  }
+
   function mountCalculator(container, textarea) {
     window.AITutorCalculator.create(container, { textarea: textarea });
   }
@@ -42,18 +61,51 @@
     });
   }
 
+  function mountAuth(root) {
+    var headerActions = root.querySelector('.header-actions');
+    if (!headerActions) return;
+    fetch('/api/config').then(function (response) { return response.json(); }).catch(function () { return {}; }).then(function (config) {
+      window.__AITUTOR_CONFIG__ = config || {};
+      var auth = window.AITutorAuth;
+      if (!auth || !config || !config.clerkPublishableKey) return; // No key configured: keep header as-is.
+      // Show the button immediately; Clerk loads when it is clicked (or right
+      // after, to swap in the user button for signed-in visitors).
+      var signup = document.createElement('button');
+      signup.type = 'button';
+      signup.className = 'header-signup-btn';
+      signup.textContent = 'Sign up free';
+      signup.addEventListener('click', function () {
+        signup.disabled = true;
+        auth.openSignUp().then(function (opened) {
+          if (!opened) window.location.href = '/sign-up'; // Modal unavailable → full-page sign-up.
+          signup.disabled = false;
+        });
+      });
+      headerActions.insertBefore(signup, headerActions.firstChild);
+      auth.load().then(function (clerk) {
+        if (clerk && clerk.user) {
+          signup.remove();
+          var mountPoint = document.createElement('div');
+          mountPoint.className = 'header-user-button';
+          headerActions.insertBefore(mountPoint, headerActions.firstChild);
+          clerk.mountUserButton(mountPoint);
+        }
+      });
+    });
+  }
+
   function mount() {
     var root = document.getElementById('root');
     if (!root) return;
     root.innerHTML = mascot() + '\n' +
       '<div class="landing">\n' +
-      '  <header class="landing-header"><a href="/" class="landing-logo"><span class="logo-icon">✦</span><span class="logo-text">AITutor</span></a><a href="/chats" class="header-chats-link">' + icon('general', 16) + ' My Chats</a></header>\n' +
+      '  <header class="landing-header"><a href="/" class="landing-logo"><span class="logo-icon">✦</span><span class="logo-text">AITutor</span></a><div class="header-actions"><a href="/chats" class="header-chats-link">' + icon('general', 16) + ' My Chats</a></div></header>\n' +
       '  <section class="landing-hero"><h1>Your AI Homework Helper</h1><p class="landing-subtitle">Snap a photo or type your question. Get clear, step-by-step answers in seconds.</p></section>\n' +
       '  <div class="subject-chips stagger-in">' + subjects.map(function (s) { return '<button class="chip" data-subject="' + s.label + '">' + icon(s.icon, 14) + s.label + '</button>'; }).join('') + '</div>\n' +
       '  <form class="input-card" id="landing-form"><div class="input-card-inner"><div class="image-preview-bar" hidden><img class="image-thumb" alt="Uploaded"><span class="image-name"></span><button type="button" class="image-remove">✕</button></div><div class="input-card-calc" hidden><div class=\"calculator\"><div class=\"calc-header\"><div class=\"calc-mode-tabs\"><button type=\"button\" class=\"calc-tab active\" data-mode=\"basic\">Calc</button><button type=\"button\" class=\"calc-tab\" data-mode=\"convert\">Convert</button></div><span class=\"calc-title\">AI Calc</span></div><div class=\"calc-panels\"><div class=\"calc-panel\" data-panel=\"calc\"><div class=\"calc-display\"><div class=\"calc-expr\">0</div><div class=\"calc-result\"></div></div><div class=\"calc-keys-sci\"><button type=\"button\" class=\"calc-key op\" data-key=\"√(\">√</button><button type=\"button\" class=\"calc-key op\" data-key=\"sin(\">sin</button><button type=\"button\" class=\"calc-key op\" data-key=\"cos(\">cos</button><button type=\"button\" class=\"calc-key op\" data-key=\"tan(\">tan</button><button type=\"button\" class=\"calc-key op\" data-key=\"log(\">log</button><button type=\"button\" class=\"calc-key op\" data-key=\"ln(\">ln</button><button type=\"button\" class=\"calc-key op\" data-key=\"π\">π</button><button type=\"button\" class=\"calc-key op\" data-key=\"^\">^</button></div><div class=\"calc-keys\"><button type=\"button\" class=\"calc-key clear\" data-key=\"C\">C</button><button type=\"button\" class=\"calc-key op\" data-key=\"( )\">( )</button><button type=\"button\" class=\"calc-key op\" data-key=\"%\">%</button><button type=\"button\" class=\"calc-key op\" data-key=\"÷\">÷</button><button type=\"button\" class=\"calc-key\" data-key=\"7\">7</button><button type=\"button\" class=\"calc-key\" data-key=\"8\">8</button><button type=\"button\" class=\"calc-key\" data-key=\"9\">9</button><button type=\"button\" class=\"calc-key op\" data-key=\"×\">×</button><button type=\"button\" class=\"calc-key\" data-key=\"4\">4</button><button type=\"button\" class=\"calc-key\" data-key=\"5\">5</button><button type=\"button\" class=\"calc-key\" data-key=\"6\">6</button><button type=\"button\" class=\"calc-key op\" data-key=\"−\">−</button><button type=\"button\" class=\"calc-key\" data-key=\"1\">1</button><button type=\"button\" class=\"calc-key\" data-key=\"2\">2</button><button type=\"button\" class=\"calc-key\" data-key=\"3\">3</button><button type=\"button\" class=\"calc-key op\" data-key=\"+\">+</button><button type=\"button\" class=\"calc-key\" data-key=\"0\">0</button><button type=\"button\" class=\"calc-key\" data-key=\".\">.</button><button type=\"button\" class=\"calc-key op\" data-key=\"⌫\">⌫</button><button type=\"button\" class=\"calc-key equals\" data-key=\"=\">=</button></div></div><div class=\"calc-panel\" data-panel=\"convert\" hidden><div class=\"converter\"><div class=\"converter-cats\"><button type=\"button\" class=\"converter-cat active\" data-cat=\"length\">Length</button><button type=\"button\" class=\"converter-cat\" data-cat=\"weight\">Weight</button><button type=\"button\" class=\"converter-cat\" data-cat=\"temp\">Temp</button><button type=\"button\" class=\"converter-cat\" data-cat=\"data\">Data</button></div><div class=\"converter-body\"></div></div></div></div><button type=\"button\" class=\"calc-insert-btn\">Insert into message ↓</button></div></div><textarea class="input-textarea" rows="3" placeholder="Ask anything... e.g. Solve for x: 2x + 5 = 15"></textarea><div class="input-actions"><div class="input-tools">    <input id="homework-image" type="file" accept="image/*" hidden><button type="button" class="tool-btn camera-btn" title="Take a photo or upload">' + icon('camera', 20) + '</button><button type="button" class="tool-btn calc-toggle" title="Calculator">' + icon('calculator', 18) + '</button></div><button type="submit" class="send-btn">Solve <span class="btn-arrow">→</span></button></div></div><p class="input-error" hidden></p></form>\n' +
       '  <section class="features stagger-in"><div class="feature hover-3d"><div class="feature-icon-wrap">' + icon('camera', 24) + '</div><h3>Camera Input</h3><p>Snap a photo of any homework problem and get instant help.</p></div><div class="feature hover-3d"><div class="feature-icon-wrap">' + icon('calculator', 24) + '</div><h3>Calculator ×2</h3><p>Scientific calculator and unit conversion tools for everyday study.</p></div><div class="feature hover-3d"><div class="feature-icon-wrap">' + icon('general', 24) + '</div><h3>All Subjects</h3><p>Math, English, Science, History, and General topics in one tutor.</p></div></section>\n' +
-      '  <section class="credits stagger-in"><div class="credits-heading"><p class="partnerships-kicker"><span class="kicker-dot"></span> Built with care</p><h2>The people behind AITutor.</h2><p class="partnerships-intro">Engineers, IT, AI, support staff, and designers working together to keep learning fast, friendly, and dependable.</p></div><div class="credits-grid"><div class="credit-card credit-founder"><span class="credit-avatar credit-emerald">RF</span><div><strong>Rhonod Fletcher</strong><span>Founder &amp; IT Lead</span></div></div><div class="credit-card"><span class="credit-avatar credit-indigo">MK</span><div><strong>Maya Kim</strong><span>Lead Developer</span></div></div><div class="credit-card"><span class="credit-avatar credit-cyan">RJ</span><div><strong>Rohan Jones</strong><span>IT Administrator</span></div></div><div class="credit-card"><span class="credit-avatar credit-amber">AN</span><div><strong>Avery Nguyen</strong><span>AI Manager</span></div></div><div class="credit-card"><span class="credit-avatar credit-rose">SC</span><div><strong>Sam Carter</strong><span>Learning Designer</span></div></div><div class="credit-card"><span class="credit-avatar credit-sky">DM</span><div><strong>Diego Morales</strong><span>Frontend Developer</span></div></div><div class="credit-card"><span class="credit-avatar credit-emerald">LF</span><div><strong>Lena Fischer</strong><span>Backend Developer</span></div></div><div class="credit-card"><span class="credit-avatar credit-indigo">PS</span><div><strong>Priya Sharma</strong><span>Full-Stack Developer</span></div></div><div class="credit-card"><span class="credit-avatar credit-cyan">OH</span><div><strong>Omar Haddad</strong><span>DevOps Engineer</span></div></div><div class="credit-card"><span class="credit-avatar credit-amber">GL</span><div><strong>Grace Lin</strong><span>QA Engineer</span></div></div><div class="credit-card"><span class="credit-avatar credit-rose">TB</span><div><strong>Tasha Brooks</strong><span>Support Lead</span></div></div><div class="credit-card"><span class="credit-avatar credit-sky">MR</span><div><strong>Marcus Reid</strong><span>Community Support</span></div></div></div></section>\n' +
-      '  <section class="partnerships stagger-in"><div class="partnerships-heading"><div><p class="partnerships-kicker"><span class="kicker-dot"></span> The learning ecosystem</p><h2>Better together.</h2><p class="partnerships-intro">AITutor fits into the tools students already love — connecting explanations, practice, and progress in one calm place.</p></div><div class="partnerships-orbit">✦</div></div><div class="partnerships-cta"><span>Building something that helps students learn?</span><a href="mailto:partners@aitutor.app" class="partnerships-link">Become a partner <span>→</span></a></div></section>\n' +
+      '  <section class="credits stagger-in"><div class="credits-heading"><p class="partnerships-kicker"><span class="kicker-dot"></span> Built with care</p><h2>The people behind AITutor.</h2><p class="partnerships-intro">Engineers, IT, AI, support staff, and designers working together to keep learning fast, friendly, and dependable. Want to help build it? <a href="mailto:partners@aitutor.app" class="partnerships-link">Join the team <span>→</span></a></p></div><div class="credits-grid"><div class="credit-card credit-founder"><span class="credit-avatar credit-emerald">RF</span><div><strong>Rhonod Fletcher</strong><span class="credit-role">Founder &amp; IT Lead</span></div></div><div class="credit-card"><span class="credit-avatar credit-indigo">MK</span><div><strong>Maya Kim</strong><span class="credit-role">Lead Developer</span></div></div><div class="credit-card"><span class="credit-avatar credit-cyan">RJ</span><div><strong>Rohan Jones</strong><span class="credit-role">IT Administrator</span></div></div><div class="credit-card"><span class="credit-avatar credit-amber">AN</span><div><strong>Avery Nguyen</strong><span class="credit-role">AI Manager</span></div></div><div class="credit-card"><span class="credit-avatar credit-rose">SC</span><div><strong>Sam Carter</strong><span class="credit-role">Learning Designer</span></div></div><div class="credit-card"><span class="credit-avatar credit-sky">DM</span><div><strong>Diego Morales</strong><span class="credit-role">Frontend Developer</span></div></div><div class="credit-card"><span class="credit-avatar credit-emerald">LF</span><div><strong>Lena Fischer</strong><span class="credit-role">Backend Developer</span></div></div><div class="credit-card"><span class="credit-avatar credit-indigo">PS</span><div><strong>Priya Sharma</strong><span class="credit-role">Full-Stack Developer</span></div></div><div class="credit-card"><span class="credit-avatar credit-cyan">OH</span><div><strong>Omar Haddad</strong><span class="credit-role">DevOps Engineer</span></div></div><div class="credit-card"><span class="credit-avatar credit-amber">GL</span><div><strong>Grace Lin</strong><span class="credit-role">QA Engineer</span></div></div><div class="credit-card"><span class="credit-avatar credit-rose">TB</span><div><strong>Tasha Brooks</strong><span class="credit-role">Support Lead</span></div></div><div class="credit-card"><span class="credit-avatar credit-sky">MR</span><div><strong>Marcus Reid</strong><span class="credit-role">Community Support</span></div></div></div></section>\n' +
+      '  <section class="partnerships stagger-in"><div class="partnerships-heading"><div><p class="partnerships-kicker"><span class="kicker-dot"></span> The learning ecosystem</p><h2>Better together.</h2><p class="partnerships-intro">AITutor fits into the tools students already love — connecting explanations, practice, and progress in one calm place.</p></div><div class="partnerships-orbit">✦</div></div><div class="partnerships-grid">' + partnerCardsMarkup() + '</div><div class="partnerships-cta"><span>Building something that helps students learn?</span><a href="mailto:partners@aitutor.app" class="partnerships-link">Become a partner <span>→</span></a></div></section>\n' +
       '  <footer class="landing-footer"><nav class="footer-links"><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/updates">Updates</a><a href="/chats">My Chats</a></nav>AITutor — Learn anything, faster.</footer>\n' +
       '</div>';
 
@@ -113,6 +165,7 @@
         window.location.href = '/chats.html' + (query.toString() ? '?' + query.toString() : '');
       }
     });
+    mountAuth(root);
   }
 
   mount();
