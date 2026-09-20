@@ -1814,6 +1814,7 @@ a.credit-card:hover .credit-avatar { transform: scale(1.08) rotate(-4deg); }
   color: var(--text-secondary);
 }
 .form-panel .req { color: var(--red); }
+.form-panel label > span:first-child { margin-right: 2px; }
 .form-panel input, .form-panel select, .form-panel textarea {
   padding: 10px 12px;
   border: 1.5px solid var(--border);
