@@ -24,7 +24,17 @@
         showMessage('Could not load sign-up (' + (auth.status().error || 'unknown error') + '). Please try again.');
         return;
       }
-      if (clerk.user) { window.location.href = '/chats'; return; }
+      if (clerk.user) {
+        // Send signed-in users back to where they were headed (default: chats).
+        var returnTo = '/chats';
+        try {
+          var stored = sessionStorage.getItem('aitutor-return-to');
+          if (stored && stored.charAt(0) === '/') returnTo = stored;
+          sessionStorage.removeItem('aitutor-return-to');
+        } catch (error) { /* private mode */ }
+        window.location.href = returnTo;
+        return;
+      }
       clerk.mountSignUp(mount);
     });
   });

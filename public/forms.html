@@ -202,27 +202,31 @@
         signInBtn.addEventListener('click', function () {
           var auth = window.AITutorAuth;
           if (!auth) { showSignInStatus('Auth is not available right now. Please refresh.', true); return; }
-          auth.openSignUp().then(function (opened) {
-            if (!opened) {
-              // Full-page sign-up fallback; come back here after signing up.
-              try { sessionStorage.setItem('aitutor-return-to', '/forms'); } catch (error) { /* private mode */ }
-              window.location.href = '/sign-up';
-              return;
-            }
-            // Wait for the user to finish signing up in the modal.
-            var attempts = 0;
-            var poll = setInterval(function () {
-              attempts += 1;
-              var auth2 = window.AITutorAuth;
-              auth2.load().then(function (clerk) {
-                if (clerk && clerk.user) {
-                  clearInterval(poll);
-                  refreshAuth();
-                } else if (attempts > 120) {
-                  clearInterval(poll);
-                }
-              });
-            }, 1000);
+          auth.load().then(function (clerk) {
+            // Already signed in? Just show the application form — no redirect.
+            if (clerk && clerk.user) { refreshAuth(); return; }
+            return auth.openSignUp({ redirectTo: '/forms' }).then(function (opened) {
+              if (!opened) {
+                // Full-page sign-up fallback; come back here after signing up.
+                try { sessionStorage.setItem('aitutor-return-to', '/forms'); } catch (error) { /* private mode */ }
+                window.location.href = '/sign-up';
+                return;
+              }
+              // Wait for the user to finish signing up in the modal.
+              var attempts = 0;
+              var poll = setInterval(function () {
+                attempts += 1;
+                var auth2 = window.AITutorAuth;
+                auth2.load().then(function (clerk) {
+                  if (clerk && clerk.user) {
+                    clearInterval(poll);
+                    refreshAuth();
+                  } else if (attempts > 120) {
+                    clearInterval(poll);
+                  }
+                });
+              }, 1000);
+            });
           });
         });
 
@@ -317,7 +321,7 @@
           }, 100);
         });
 
-        if (!reportForm.hidden) return; // Report tab is open; auth check not needed yet.
+        refreshAuth();
       })();
     </script>
   </body>

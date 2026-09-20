@@ -85,9 +85,12 @@
     return state.ready;
   }
 
-  function openSignUp() {
+  function openSignUp(options) {
+    // Already-signed-in users are sent back to the page that asked for auth
+    // (default: the chats page). Callers pass { redirectTo: '/forms' } etc.
+    var redirectTo = (options && options.redirectTo) || '/chats';
     return load().then(function (clerk) {
-      if (clerk && clerk.user) { window.location.href = '/chats'; return true; }
+      if (clerk && clerk.user) { window.location.href = redirectTo; return true; }
       if (clerk && typeof clerk.openSignUp === 'function') { clerk.openSignUp(); return true; }
       return false;
     });
