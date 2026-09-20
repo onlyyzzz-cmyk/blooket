@@ -21,6 +21,23 @@
     return '';
   }
 
+  // Pages that don't load a page script (forms, community, updates, sign-up)
+  // never set window.__AITUTOR_CONFIG__, so fetch it from the server ourselves.
+  var configFetched = null;
+  function fetchConfig() {
+    if (!configFetched) {
+      configFetched = fetch('/api/config')
+        .then(function (response) { return response.json(); })
+        .then(function (config) {
+          window.__AITUTOR_CONFIG__ = config || {};
+        })
+        .catch(function () {
+          window.__AITUTOR_CONFIG__ = window.__AITUTOR_CONFIG__ || {};
+        });
+    }
+    return configFetched;
+  }
+
   function clerkDomain(key) {
     try {
       // pk_test_<base64 domain>$ → decode the third underscore-separated part.
@@ -57,6 +74,7 @@
   function load() {
     if (state.ready) return state.ready;
     state.ready = (async function () {
+      if (!publishableKey()) await fetchConfig();
       var key = publishableKey();
       if (!key) { state.error = 'No publishable key configured'; console.warn('[AITutorAuth]', state.error); return null; }
       var domain = clerkDomain(key);
