@@ -7,8 +7,8 @@
     <meta name="description" content="Report a member or apply to become an AITutor moderator or admin. Applications require a free account and are reviewed by AI." />
     <title>Forms — AITutor</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="stylesheet" href="/styles.css?v=19" />
-    <script defer src="/auth.global.js?v=19"></script>
+    <link rel="stylesheet" href="/styles.css?v=20" />
+    <script defer src="/auth.global.js?v=20"></script>
     <style>
       .signin-gate {
         display: flex;
@@ -277,16 +277,32 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
           })
-            .then(function (response) { return response.json().then(function (data) { return { ok: response.ok, data: data }; }); })
+            .then(function (response) {
+              // Read as text first so an HTML error page (old server, proxy
+              // error) doesn't crash JSON parsing and hide the real cause.
+              return response.text().then(function (raw) {
+                var data;
+                try { data = JSON.parse(raw); } catch (error) { data = null; }
+                return { ok: response.ok, status: response.status, data: data };
+              });
+            })
             .then(function (outcome) {
-              if (outcome.ok && outcome.data.ok) {
+              if (outcome.ok && outcome.data && outcome.data.ok) {
                 showResult(formResult, buildMessage ? buildMessage(outcome.data) : 'Submitted!', false);
                 form.reset();
+                if (endpoint === '/api/forms' && payload.kind === 'application') refreshAuth();
+              } else if (outcome.data && outcome.data.error) {
+                showResult(formResult, outcome.data.error, true);
+              } else if (outcome.status === 404 || outcome.status === 502 || outcome.status === 503) {
+                showResult(formResult, 'The server does not have the forms feature yet — the host needs to update and restart with the latest code (status ' + outcome.status + ').', true);
               } else {
-                showResult(formResult, outcome.data.error || 'Something went wrong. Please try again.', true);
+                showResult(formResult, 'The server returned an error (status ' + outcome.status + '). Please try again.', true);
               }
             })
-            .catch(function () { showResult(formResult, 'Could not reach the server. Please try again.', true); });
+            .catch(function (error) {
+              var reason = error && error.message ? ' (' + error.message + ')' : '';
+              showResult(formResult, 'Could not reach the server' + reason + '. If this keeps happening, the host may need to restart the server with the latest code.', true);
+            });
         }
 
         reportForm.addEventListener('submit', function (event) {
