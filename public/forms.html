@@ -99,6 +99,9 @@
             <label>Display name <span class="req">*</span>
               <input type="text" name="name" id="application-name" maxlength="60" placeholder="Name the community will see on your Mod badge" required />
             </label>
+            <label>Your contact email <span class="req">*</span>
+              <input type="email" name="email" id="application-email" maxlength="120" placeholder="Where should we send the result?" required />
+            </label>
             <label>Position <span class="req">*</span>
               <select name="position" id="application-position">
                 <option value="moderator">Moderator</option>
@@ -176,22 +179,55 @@
         var currentUser = null;
         var userEmail = '';
 
+        function applyUser(user) {
+          currentUser = user;
+          // Clerk exposes primaryEmailAddress as an object (newer builds) or a
+          // string (older builds) — handle both, plus the emailAddresses list.
+          var primary = user.primaryEmailAddress;
+          if (primary && typeof primary === 'object' && primary.emailAddress) {
+            userEmail = primary.emailAddress;
+          } else if (typeof primary === 'string' && primary.indexOf('@') !== -1) {
+            userEmail = primary;
+          } else if (Array.isArray(user.emailAddresses) && user.emailAddresses[0] && user.emailAddresses[0].emailAddress) {
+            userEmail = user.emailAddresses[0].emailAddress;
+          } else {
+            userEmail = '';
+          }
+          gate.hidden = true;
+          fieldsForm.hidden = false;
+          signedInNote.hidden = false;
+          var nameGuess = ((user.firstName || '') + ' ' + (user.lastName || '')).trim();
+          if (!document.getElementById('application-name').value && nameGuess) {
+            document.getElementById('application-name').value = nameGuess.slice(0, 60);
+          }
+          signedInNote.textContent = userEmail
+            ? '✅ Applying as ' + userEmail + ' — the result email will be sent here (or set one below).'
+            : '✅ Signed in — add a contact email below so we can send you the result.';
+        }
+
         function refreshAuth() {
           var auth = window.AITutorAuth;
           if (!auth) { gate.hidden = false; return; }
           auth.load().then(function (clerk) {
             if (clerk && clerk.user) {
-              currentUser = clerk.user;
-              var primary = clerk.user.primaryEmailAddress;
-              userEmail = (primary && primary.emailAddress) || (primary && primary.id) || '';
-              gate.hidden = true;
-              fieldsForm.hidden = false;
-              signedInNote.hidden = false;
-              var nameGuess = (clerk.user.firstName || '') + ' ' + (clerk.user.lastName || '');
-              if (!document.getElementById('application-name').value && nameGuess.trim()) {
-                document.getElementById('application-name').value = nameGuess.trim();
+              applyUser(clerk.user);
+            } else if (clerk) {
+              // The session may still be restoring — react as soon as the
+              // user object appears instead of giving up and showing the gate.
+              if (typeof clerk.addListener === 'function') {
+                clerk.addListener(function (session) {
+                  if (session && session.user) {
+                    applyUser(session.user);
+                  } else {
+                    currentUser = null;
+                    userEmail = '';
+                    gate.hidden = false;
+                    fieldsForm.hidden = true;
+                  }
+                });
               }
-              signedInNote.innerHTML = '✅ Applying as <strong>' + userEmail + '</strong> — the result email will be sent here.';
+              gate.hidden = false;
+              fieldsForm.hidden = true;
             } else {
               gate.hidden = false;
               fieldsForm.hidden = true;
@@ -279,7 +315,7 @@
           }, function (data) {
             var triage = data.triage;
             if (triage) {
-              return 'Submitted! Our AI triaged it as <' + triage.severity + '> severity (' + triage.category + '): ' + (triage.summary || 'thank you!');
+              return 'Submitted! Our AI triaged it as ' + triage.severity + ' severity (' + triage.category + '): ' + (triage.summary || 'thank you!');
             }
             return 'Submitted! Thank you — the team will review it.';
           });
@@ -300,7 +336,7 @@
           submitForm(fieldsForm, '/api/forms', {
             kind: 'application',
             userId: currentUser.id,
-            email: userEmail,
+            email: String(fields.get('email') || '').trim() || userEmail,
             name: fields.get('name'),
             position: fields.get('position'),
             timezone: fields.get('timezone'),
