@@ -1,16 +1,14 @@
 {
-  "name": "ai-tutor",
+  "name": "templo",
   "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "node index.js",
-    "typecheck": "node --check index.js",
-    "api": "python3 api/app.py",
-    "start": "node index.js"
+    "start": "node index.js",
+    "typecheck": "node --check index.js"
   },
   "dependencies": {
-    "dotenv": "^16.4.7",
-    "groq-sdk": "^0.15.0"
+    "dotenv": "^16.4.7"
   }
 }

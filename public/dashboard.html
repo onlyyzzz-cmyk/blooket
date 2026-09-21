@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#060609" />
+    <meta name="description" content="Your Templo dashboard — browse, publish, and manage Discord server templates." />
+    <title>Dashboard — Templo</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/styles.css?v=1" />
+    <script defer src="/auth.global.js?v=19"></script>
+    <script defer src="/site.global.js?v=1"></script>
+    <script defer src="/dashboard.global.js?v=1"></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <a href="/" class="logo"><span class="logo-mark">T</span>Templo</a>
+      <nav class="header-nav">
+        <a href="/" class="nav-link">Home</a>
+        <a href="/dashboard" class="nav-link active">Dashboard</a>
+        <div class="header-user" style="display:flex;gap:8px;align-items:center;"></div>
+      </nav>
+    </header>
+
+    <main class="page-main">
+      <h1 class="page-title">Dashboard</h1>
+      <p class="page-sub" id="dash-sub">Browse every template, or publish your own.</p>
+
+      <div class="toolbar">
+        <div class="search-box">
+          <input type="search" id="dash-search" placeholder="Search templates, tags, or authors…" />
+        </div>
+        <select id="dash-sort" class="select" aria-label="Sort templates">
+          <option value="new">Newest</option>
+          <option value="top">Most liked</option>
+          <option value="copies">Most used</option>
+        </select>
+        <select id="dash-mine" class="select" aria-label="Filter">
+          <option value="">All templates</option>
+          <option value="1">My templates</option>
+        </select>
+        <button type="button" class="btn btn-primary" id="dash-new">+ New template</button>
+      </div>
+
+      <div class="notice" id="dash-notice" hidden></div>
+
+      <div class="grid" id="dash-grid">
+        <div class="empty"><div class="e-icon">📭</div><h3>Loading templates…</h3></div>
+      </div>
+    </main>
+
+    <!-- Create / edit modal -->
+    <div class="modal-backdrop" id="editor-backdrop" hidden>
+      <div class="modal" role="dialog" aria-modal="true">
+        <h2 id="editor-title">Publish a template</h2>
+        <p class="modal-sub" id="editor-sub">Share your Discord server template with the community.</p>
+        <form id="editor-form">
+          <div class="field">
+            <label for="f-name">Template name<span class="req">*</span></label>
+            <input type="text" id="f-name" name="name" maxlength="60" placeholder="e.g. Ultimate Gaming Hub" required />
+          </div>
+          <div class="field">
+            <label for="f-bio">Bio / description</label>
+            <textarea id="f-bio" name="bio" maxlength="300" placeholder="What does this server include? Channels, roles, vibe…"></textarea>
+          </div>
+          <div class="field">
+            <label for="f-link">Discord template link<span class="req">*</span></label>
+            <input type="url" id="f-link" name="link" placeholder="https://discord.com/template/XXXXXXXX" required />
+            <div class="hint">In Discord: Server Settings → Template → click your template to copy its link.</div>
+          </div>
+          <div class="field">
+            <label for="f-guild">Server name (optional)</label>
+            <input type="text" id="f-guild" name="guildName" maxlength="60" placeholder="The server this template came from" />
+          </div>
+          <div class="field">
+            <label for="f-tags">Tags (comma separated, up to 6)</label>
+            <input type="text" id="f-tags" name="tags" placeholder="gaming, community, music" />
+          </div>
+          <p class="form-note" id="editor-note" hidden></p>
+          <div class="modal-actions">
+            <button type="button" class="btn btn-ghost" id="editor-cancel">Cancel</button>
+            <button type="submit" class="btn btn-primary" id="editor-submit">Publish</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <footer class="site-footer">
+      <div class="footer-links">
+        <a href="/">Home</a>
+        <a href="/sign-up">Sign up</a>
+      </div>
+      <div>Templo — Discord server templates, shared by the community. Not affiliated with Discord.</div>
+    </footer>
+  </body>
+</html>

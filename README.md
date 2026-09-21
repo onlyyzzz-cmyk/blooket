@@ -1,60 +1,48 @@
-# AI Tutor
+# Templo — Discord Server Template Sharing
 
-AI Tutor is a calm, focused study workspace for turning difficult homework into clear explanations. It supports typed questions, homework photos, chat history, subject filters, and Groq-powered tutoring.
+Templo is a community hub for **Discord server templates**: discover templates made by others, publish your own in under a minute, and apply any template to your server with one click.
+
+## Features
+
+- **Browse** — search by name, bio, tag, or author; sort by newest, most liked, or most used.
+- **Publish** — sign in and add a template with its name, bio, and Discord template link (`https://discord.com/template/…`), plus optional tags and server name.
+- **Like** — signed-in users can like templates; the community ranking updates instantly.
+- **Use** — every card links directly to Discord's official template page.
+- **Manage** — edit or delete your own templates from the dashboard ("My templates" filter).
+- **Clerk auth** — the header offers sign-in/sign-up everywhere, with a full-page `/sign-up` fallback.
 
 ## Stack
 
-- **Node.js** runs the entire app in `index.js` — the API, static frontend, and extensionless `/chats` route in one process. No build step.
-- The frontend is plain HTML/CSS/JavaScript in `public/` (no bundler, no TypeScript compile).
-- **Python 3** offers an equivalent API in `api/app.py` using only the standard library, for hosts that prefer Python.
-- **Groq** provides the tutoring responses through the server-side `GROQ_API_KEY`.
-- Chat history is stored in `api/data/chats.json`.
+- **Backend:** zero-dependency Node HTTP server (`index.js`) with a JSON API and static file serving. Template data persists to `data/templates.json`.
+- **Frontend:** plain HTML/CSS/JS (`public/`) with a Discord-style dark theme.
+- **Auth:** Clerk (browser script build), configured via `VITE_CLERK_PUBLISHABLE_KEY`.
 
-## Local development
+## Environment variables
 
-Install the Node dependencies, then run the app:
+| Key | Purpose |
+| --- | --- |
+| `PORT` | Port the server listens on (default `8787`). |
+| `VITE_CLERK_PUBLISHABLE_KEY` | Clerk publishable key (`pk_…`) — enables sign-in/sign-up. |
+| `DATA_DIR` | Optional override for where `templates.json` is stored. |
 
-```bash
+## Run
+
+```sh
 npm install
-npm start
+npm start          # serves on 0.0.0.0:$PORT (default 8787)
 ```
 
-That's it — one process serves the frontend, the API, and the `/chats` route on the configured `PORT` (default 8787). For API-only development, run `npm run api` to start the Python API on port 8000 instead.
+## API
 
-Useful commands:
+| Method | Route | Description |
+| --- | --- | --- |
+| GET | `/api/templates?search=&tag=&sort=new\|top\|copies&mine=1&viewerId=` | List templates |
+| POST | `/api/templates` | Publish a template (`ownerId`, `name`, `link`, …) |
+| GET | `/api/templates/:id` | Single template |
+| PATCH | `/api/templates/:id` | Edit (owner only) |
+| DELETE | `/api/templates/:id` | Delete (owner only) |
+| POST | `/api/templates/:id` | `action: "like"` or `action: "copy"` |
+| GET | `/api/config` | Clerk publishable key for the client |
+| GET | `/api/health` | Health check |
 
-```bash
-npm run typecheck   # syntax-checks index.js
-python3 -m py_compile api/app.py
-```
-
-The API exposes:
-
-- `GET /api/health`
-- `GET /api/models`
-- `POST /api/tutor`
-- `GET|POST|DELETE /api/chats`
-
-## Environment
-
-Required for live tutoring:
-
-- `GROQ_API_KEY` — add this in Freebuff Settings → Environment.
-
-The API remains usable without the key for health and model checks, but tutoring requests return a clear configuration error.
-
-## Production
-
-### Bonto (recommended — one service for everything)
-
-The app runs as a single Node.js service via `node index.js`. No build step is needed — static files are served straight from `public/`.
-
-1. Create a project on [bonto.dev](https://bonto.dev) (or connect via Git push-to-deploy).
-2. Set the start command to `npm start` and add `GROQ_API_KEY` in the Bonto dashboard.
-3. Deploy — the app goes live at `https://yourapp.bonto.run`.
-
-### Cloudflare Workers (alternative)
-
-The repository includes `wrangler.jsonc` for Cloudflare Workers deploys: static assets are served from `public/` and `/api/*` is proxied to the externally hosted Python API.
-
-For Cloudflare, set the `API_BASE` variable (in the Workers dashboard or `wrangler.jsonc` vars) to the public URL of the machine running `python3 api/app.py`, with `GROQ_API_KEY` configured on that API host. Alternatively, deploy the Python API separately on any host and set `AI_TUTOR_API_URL` in the frontend host when it is on a different origin.
+Not affiliated with Discord.

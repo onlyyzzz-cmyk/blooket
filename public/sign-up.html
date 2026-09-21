@@ -3,27 +3,27 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#f6f7fb" />
-    <meta name="description" content="Create your AITutor account — free sign up." />
-    <title>Sign up — AITutor</title>
+    <meta name="theme-color" content="#060609" />
+    <meta name="description" content="Create your Templo account — publish and like Discord server templates." />
+    <title>Sign up — Templo</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="stylesheet" href="/styles.css?v=15" />
+    <link rel="stylesheet" href="/styles.css?v=1" />
     <script defer src="/auth.global.js?v=19"></script>
-    <script defer src="/signup.global.js?v=18"></script>
+    <script defer src="/signup.global.js?v=19"></script>
   </head>
-  <body class="doc-page">
-    <header class="doc-header">
-      <a href="/" class="landing-logo"><span class="logo-icon">✦</span><span class="logo-text">AITutor</span></a>
-      <nav class="doc-nav">
-        <a href="/" class="header-chats-link">Home</a>
-        <a href="/chats" class="header-chats-link">My Chats</a>
+  <body>
+    <header class="site-header">
+      <a href="/" class="logo"><span class="logo-mark">T</span>Templo</a>
+      <nav class="header-nav">
+        <a href="/" class="nav-link">Home</a>
+        <a href="/dashboard" class="nav-link">Dashboard</a>
       </nav>
     </header>
-    <main class="doc-main">
-      <div class="doc-card auth-card">
-        <p class="doc-kicker"><span class="kicker-dot"></span> Free account</p>
-        <h1>Create your account</h1>
-        <p class="doc-updated">Save your chat history and pick up where you left off, on any device.</p>
+    <main class="auth-wrap">
+      <div class="auth-card">
+        <span class="kicker">Free account</span>
+        <h1>Join Templo</h1>
+        <p class="auth-sub">Publish your Discord server templates, like your favorites, and keep everything tied to your account.</p>
         <div id="clerk-signup" class="clerk-mount"></div>
         <noscript><p>Enable JavaScript to sign up.</p></noscript>
       </div>

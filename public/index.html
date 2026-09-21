@@ -3,17 +3,77 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#f6f7fb" />
-    <meta name="description" content="AITutor — Your AI Homework Helper. Snap a photo, get step-by-step answers." />
-    <title>AITutor — Your AI Homework Helper</title>
+    <meta name="theme-color" content="#060609" />
+    <meta name="description" content="Templo — discover, share, and publish Discord server templates. Free forever." />
+    <title>Templo — Discord Server Templates</title>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="stylesheet" href="/styles.css?v=15" />
+    <link rel="stylesheet" href="/styles.css?v=1" />
     <script defer src="/auth.global.js?v=19"></script>
+    <script defer src="/site.global.js?v=1"></script>
+    <script defer src="/home.global.js?v=1"></script>
   </head>
   <body>
-    <div id="root"></div>
-    <script src="/api.global.js?v=11"></script>
-    <script src="/calculator.global.js?v=12"></script>
-    <script src="/main.global.js?v=13"></script>
+    <header class="site-header">
+      <a href="/" class="logo"><span class="logo-mark">T</span>Templo</a>
+      <nav class="header-nav">
+        <a href="/" class="nav-link active">Home</a>
+        <a href="/dashboard" class="nav-link">Dashboard</a>
+        <div class="header-user" style="display:flex;gap:8px;align-items:center;"></div>
+      </nav>
+    </header>
+
+    <section class="hero">
+      <span class="hero-badge">✦ The biggest Discord template library</span>
+      <h1>Find your server's<br /><span class="grad">perfect template</span></h1>
+      <p>Browse community-made Discord server templates, publish your own in seconds, and set up your server with one click. No account needed to browse — sign up to publish.</p>
+      <div class="hero-actions">
+        <a href="/dashboard" class="btn btn-primary">Browse templates</a>
+        <button type="button" class="btn btn-ghost hero-signup">Publish yours free</button>
+      </div>
+    </section>
+
+    <section class="section" id="browse">
+      <div class="section-head">
+        <h2>Fresh templates</h2>
+        <span class="sub" id="template-count"></span>
+      </div>
+      <div class="grid" id="home-grid">
+        <div class="empty"><div class="e-icon">📭</div><h3>Loading templates…</h3></div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head"><h2>Why Templo?</h2></div>
+      <div class="features">
+        <div class="feature">
+          <div class="f-icon">⚡</div>
+          <h3>One-click setup</h3>
+          <p>Every template links straight to Discord's official template page — apply it to your server instantly.</p>
+        </div>
+        <div class="feature">
+          <div class="f-icon">🏷️</div>
+          <h3>Tags &amp; search</h3>
+          <p>Gaming, community, study, music — filter templates by tag or search by name and description.</p>
+        </div>
+        <div class="feature">
+          <div class="f-icon">📈</div>
+          <h3>Ranked by the community</h3>
+          <p>Like your favorites and sort by most used. The best templates rise to the top.</p>
+        </div>
+        <div class="feature">
+          <div class="f-icon">🆓</div>
+          <h3>Free forever</h3>
+          <p>Unlimited browsing and publishing. An account is only needed to publish and like.</p>
+        </div>
+      </div>
+    </section>
+
+    <footer class="site-footer">
+      <div class="footer-links">
+        <a href="/dashboard">Dashboard</a>
+        <a href="/sign-up">Sign up</a>
+      </div>
+      <div>Templo — Discord server templates, shared by the community. Not affiliated with Discord.</div>
+    </footer>
   </body>
 </html>
