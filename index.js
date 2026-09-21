@@ -20,11 +20,11 @@ const groq = process.env.GROQ_API_KEY ? new Groq({ apiKey: process.env.GROQ_API_
 const VALID_SUBJECTS = ['Math', 'English', 'Science', 'History', 'General'];
 const DEFAULT_MODEL = 'qwen/qwen3.8-27b';
 const AVAILABLE_MODELS = [
-  { id: 'qwen/qwen3.8-27b', name: 'Qwen 3.8 27B', provider: 'Alibaba', tier: 'balanced', supportsImages: true },
-  { id: 'openai/gpt-oss-120b', name: 'GPT OSS 120B', provider: 'OpenAI', tier: 'powerful', supportsImages: false },
-  { id: 'openai/gpt-oss-20b', name: 'GPT OSS 20B', provider: 'OpenAI', tier: 'fast', supportsImages: false },
-  { id: 'groq/compound', name: 'Compound', provider: 'Groq', tier: 'powerful', supportsImages: false },
-  { id: 'groq/compound-mini', name: 'Compound Mini', provider: 'Groq', tier: 'fast', supportsImages: false },
+  { id: 'qwen/qwen3.8-27b', name: 'Qwen 3.8 27B', provider: 'Alibaba', tier: 'balanced', supportsImages: true, supportsWebSearch: false },
+  { id: 'openai/gpt-oss-120b', name: 'GPT OSS 120B', provider: 'OpenAI', tier: 'powerful', supportsImages: false, supportsWebSearch: false },
+  { id: 'openai/gpt-oss-20b', name: 'GPT OSS 20B', provider: 'OpenAI', tier: 'fast', supportsImages: false, supportsWebSearch: false },
+  { id: 'groq/compound', name: 'Compound', provider: 'Groq', tier: 'powerful', supportsImages: false, supportsWebSearch: true },
+  { id: 'groq/compound-mini', name: 'Compound Mini', provider: 'Groq', tier: 'fast', supportsImages: false, supportsWebSearch: true },
 ];
 
 try { fs.mkdirSync(dataDir, { recursive: true }); } catch { /* Data storage is best effort. */ }
@@ -355,6 +355,11 @@ CRITICAL RULES:
 9. Write one focused micro-lesson. Keep every response under 250 words so it is easy to read.
 10. Keep answers concise but complete.`;
 
+// Questions matching these hints need fresh, real-world information, so they are
+// routed to Groq's Compound model, which has built-in web search.
+const WEB_SEARCH_HINTS = /\b(latest|breaking|news|today|current|currently|recent|recently|this (week|month|year)|who won|weather|forecast|stock price|release date|search (for|the web)|look up|population of|2025|2026)\b/i;
+const WEB_SEARCH_NOTE = '\n\nUse web search to look up current information before answering. Keep the usual answer-first format, and list the source links you used at the end under "Sources:".';
+
 async function handleApi(req, res, url) {
   const headers = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type' };
   if (req.method === 'OPTIONS') {
@@ -606,23 +611,53 @@ async function handleApi(req, res, url) {
       if (!cleanPrompt && !body.image) return sendError(res, 400, 'Add a question or upload a homework image first.');
       if (!groq) return sendError(res, 503, 'Groq is not configured yet. Add GROQ_API_KEY in your environment.');
 
-      const chosenModel = typeof body.model === 'string' && body.model.trim() ? body.model.trim() : DEFAULT_MODEL;
-      const modelInfo = AVAILABLE_MODELS.find((model) => model.id === chosenModel);
-      const userContent = [{ type: 'text', text: `${TUTOR_PROMPT}\n\nThe student is focusing on ${body.subject || 'General'}.\n\nStudent question: ${cleanPrompt || 'Please read and explain the attached homework image.'}` }];
+      let chosenModel = typeof body.model === 'string' && body.model.trim() ? body.model.trim() : DEFAULT_MODEL;
       const hasImage = typeof body.image === 'string' && body.image.startsWith('data:image/');
+      const modelInfo = AVAILABLE_MODELS.find((model) => model.id === chosenModel);
       if (hasImage && !modelInfo?.supportsImages) {
         return sendError(res, 400, 'This model cannot view images. Switch to Qwen 3.8 27B and send the photo again.');
       }
+      // Web search: the student can force it with the 🌐 toggle, or it turns on
+      // automatically when the question clearly needs current information.
+      // Forcing it only works on the Compound models — anything else gets the
+      // same switch-model guidance as unsupported photos.
+      const explicitSearch = body.webSearch === true && !hasImage;
+      if (explicitSearch && modelInfo && modelInfo.supportsWebSearch === false) {
+        return sendError(res, 400, 'Web search needs the Compound model. Open the model picker, switch to Compound (or Compound Mini), and send again.');
+      }
+      const wantsWebSearch = (explicitSearch || WEB_SEARCH_HINTS.test(cleanPrompt)) && !hasImage;
+      // compound-mini performs the search: the full Compound model is currently
+      // rejected by Groq with 413 (request too large) on this account.
+      if (wantsWebSearch && !(modelInfo && modelInfo.supportsWebSearch)) {
+        chosenModel = 'groq/compound-mini';
+      }
+      const userContent = [{ type: 'text', text: `${TUTOR_PROMPT}\n\nThe student is focusing on ${body.subject || 'General'}.${wantsWebSearch ? WEB_SEARCH_NOTE : ''}\n\nStudent question: ${cleanPrompt || 'Please read and explain the attached homework image.'}` }];
       if (hasImage) userContent.push({ type: 'image_url', image_url: { url: body.image } });
 
       const messages = Array.isArray(body.history)
         ? body.history.slice(-6).filter((turn) => turn && ['user', 'assistant'].includes(turn.role) && typeof turn.content === 'string').map((turn) => ({ role: turn.role, content: turn.content }))
         : [];
       messages.push({ role: 'user', content: userContent });
-      const completion = await groq.chat.completions.create({ model: chosenModel, messages, temperature: 0.35, max_tokens: 700 });
+      let completion;
+      try {
+        completion = await groq.chat.completions.create({ model: chosenModel, messages, temperature: 0.35, max_tokens: 700 });
+      } catch (searchError) {
+        // Web search can pull in more content than the context allows (Groq 413).
+        // Fall back to the requested model without search so the student still
+        // gets an answer instead of an error.
+        if (!wantsWebSearch) throw searchError;
+        console.error('Web search failed, retrying without it:', searchError instanceof Error ? searchError.message : searchError);
+        const fallbackContent = [{ type: 'text', text: `${TUTOR_PROMPT}\n\nThe student is focusing on ${body.subject || 'General'}.\n\nStudent question: ${cleanPrompt || 'Please read and explain the attached homework image.'}` }];
+        if (hasImage) fallbackContent.push({ type: 'image_url', image_url: { url: body.image } });
+        messages[messages.length - 1] = { role: 'user', content: fallbackContent };
+        const fallbackModel = modelInfo ? modelInfo.id : DEFAULT_MODEL;
+        completion = await groq.chat.completions.create({ model: fallbackModel, messages, temperature: 0.35, max_tokens: 700 });
+        sendJson(res, 200, { answer: limitToWords(completion.choices[0]?.message?.content || 'I could not create an explanation this time.'), webSearch: false, webSearchFailed: true }, headers);
+        return true;
+      }
       const answer = completion.choices[0]?.message?.content;
       const limitedAnswer = typeof answer === 'string' ? limitToWords(answer) : 'I could not create an explanation this time.';
-      sendJson(res, 200, { answer: limitedAnswer }, headers);
+      sendJson(res, 200, { answer: limitedAnswer, webSearch: wantsWebSearch }, headers);
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

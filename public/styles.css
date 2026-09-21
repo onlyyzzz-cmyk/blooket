@@ -1632,6 +1632,26 @@ a.credit-card:hover .credit-avatar { transform: scale(1.08) rotate(-4deg); }
   background: var(--primary-light);
   color: var(--primary);
 }
+.input-bar-tool.chat-websearch.calc-active {
+  background: linear-gradient(135deg, rgba(16,185,129,0.14), rgba(6,182,212,0.14));
+  color: #059669;
+  box-shadow: 0 0 0 2px rgba(16,185,129,0.18);
+}
+
+/* Web-search result badge */
+.websearch-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  margin: 6px auto 0;
+  padding: 4px 12px;
+  border-radius: 100px;
+  background: rgba(16,185,129,0.1);
+  color: #059669;
+  font-size: 11px;
+  font-weight: 600;
+}
 
 /* Animations */
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -1804,19 +1824,19 @@ a.credit-card:hover .credit-avatar { transform: scale(1.08) rotate(-4deg); }
 }
 .form-tab:hover { border-color: var(--primary); color: var(--primary); }
 .form-tab.active { background: var(--primary); border-color: var(--primary); color: white; }
-.form-panel { display: flex; flex-direction: column; gap: 14px; }
+.form-panel { display: flex; flex-direction: column; gap: 10px; max-width: 560px; }
 .form-panel label {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  font-size: 13px;
+  gap: 4px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-secondary);
 }
 .form-panel .req { color: var(--red); }
 .form-panel label > span:first-child { margin-right: 2px; }
 .form-panel input, .form-panel select, .form-panel textarea {
-  padding: 10px 12px;
+  padding: 8px 11px;
   border: 1.5px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--surface);
@@ -1828,6 +1848,7 @@ a.credit-card:hover .credit-avatar { transform: scale(1.08) rotate(-4deg); }
   font-family: inherit;
 }
 .form-panel input:focus, .form-panel select:focus, .form-panel textarea:focus { border-color: var(--primary); }
+.form-panel textarea { resize: vertical; min-height: 74px; }
 .form-submit {
   align-self: flex-start;
   padding: 11px 24px;

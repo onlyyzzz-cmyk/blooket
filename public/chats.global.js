@@ -10,6 +10,7 @@
     general: '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
     camera: '<path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/>',
     calculator: '<rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="12" x2="8" y2="12.01"/><line x1="12" y1="12" x2="12" y2="12.01"/><line x1="16" y1="12" x2="16" y2="12.01"/><line x1="8" y1="16" x2="8" y2="16.01"/><line x1="12" y1="16" x2="12" y2="16.01"/><line x1="16" y1="16" x2="16" y2="16.01"/>',
+    globe: '<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>',
   };
   var toolIcon = function (name, size) {
     return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + iconPaths[name] + '</svg>';
@@ -47,7 +48,7 @@
   function mount() {
     var root = document.getElementById('root');
     if (!root) return;
-    root.innerHTML = '<div class="chat-layout"><aside class="chat-sidebar"><div class="sidebar-top"><a href="/" class="sidebar-logo"><span class="logo-icon">✦</span><span class="logo-text">AITutor</span></a><button class="new-chat-btn">＋ New Chat</button></div><div class="sidebar-chats"><p class="empty-chats">Loading chats…</p></div><div class="sidebar-footer"><a href="/terms" class="sidebar-doc-link">Terms</a><a href="/privacy" class="sidebar-doc-link">Privacy</a><a href="/updates" class="sidebar-doc-link">Updates</a></div></aside><main class="chat-main"><div class="chat-header"><div class="chat-title-group"><h2>New Chat</h2><span class="session-chip" aria-label="Current chat session"></span></div><div class="header-right"><div class="subject-chips small">' + subjects.map(function (s) { return '<button class="chip" data-subject="' + s + '">' + subjectIcon(s) + ' ' + s + '</button>'; }).join('') + '</div><div class="model-switcher"><button class="model-trigger">◉ <span class="model-name">Qwen 3.8 27B</span>⌄</button><div class="model-dropdown" hidden></div></div></div></div><div class="chat-messages"><div class="chat-empty-state"><div class="empty-icon">✦</div><h3>Ask me anything</h3><p>Math, English, Science, History, or General — I\'ll break it down step by step.</p><div class="empty-suggestions"><button class="suggestion-chip">12 / 9 = ?</button><button class="suggestion-chip">Explain photosynthesis</button><button class="suggestion-chip">Counting</button><button class="suggestion-chip">WWI causes</button></div></div></div><div class="chat-error" hidden></div><form class="chat-input-bar"><div class="input-bar-preview" hidden><img class="input-bar-thumb" alt="Uploaded"><span class="image-name"></span><button type="button">✕</button></div><div class="input-bar-calc" hidden><div class=\"calculator\"><div class=\"calc-header\"><div class=\"calc-mode-tabs\"><button type=\"button\" class=\"calc-tab active\" data-mode=\"basic\">Calc</button><button type=\"button\" class=\"calc-tab\" data-mode=\"convert\">Convert</button></div><span class=\"calc-title\">AI Calc</span></div><div class=\"calc-panels\"><div class=\"calc-panel\" data-panel=\"calc\"><div class=\"calc-display\"><div class=\"calc-expr\">0</div><div class=\"calc-result\"></div></div><div class=\"calc-keys-sci\"><button type=\"button\" class=\"calc-key op\" data-key=\"√(\">√</button><button type=\"button\" class=\"calc-key op\" data-key=\"sin(\">sin</button><button type=\"button\" class=\"calc-key op\" data-key=\"cos(\">cos</button><button type=\"button\" class=\"calc-key op\" data-key=\"tan(\">tan</button><button type=\"button\" class=\"calc-key op\" data-key=\"log(\">log</button><button type=\"button\" class=\"calc-key op\" data-key=\"ln(\">ln</button><button type=\"button\" class=\"calc-key op\" data-key=\"π\">π</button><button type=\"button\" class=\"calc-key op\" data-key=\"^\">^</button></div><div class=\"calc-keys\"><button type=\"button\" class=\"calc-key clear\" data-key=\"C\">C</button><button type=\"button\" class=\"calc-key op\" data-key=\"( )\">( )</button><button type=\"button\" class=\"calc-key op\" data-key=\"%\">%</button><button type=\"button\" class=\"calc-key op\" data-key=\"÷\">÷</button><button type=\"button\" class=\"calc-key\" data-key=\"7\">7</button><button type=\"button\" class=\"calc-key\" data-key=\"8\">8</button><button type=\"button\" class=\"calc-key\" data-key=\"9\">9</button><button type=\"button\" class=\"calc-key op\" data-key=\"×\">×</button><button type=\"button\" class=\"calc-key\" data-key=\"4\">4</button><button type=\"button\" class=\"calc-key\" data-key=\"5\">5</button><button type=\"button\" class=\"calc-key\" data-key=\"6\">6</button><button type=\"button\" class=\"calc-key op\" data-key=\"−\">−</button><button type=\"button\" class=\"calc-key\" data-key=\"1\">1</button><button type=\"button\" class=\"calc-key\" data-key=\"2\">2</button><button type=\"button\" class=\"calc-key\" data-key=\"3\">3</button><button type=\"button\" class=\"calc-key op\" data-key=\"+\">+</button><button type=\"button\" class=\"calc-key\" data-key=\"0\">0</button><button type=\"button\" class=\"calc-key\" data-key=\".\">.</button><button type=\"button\" class=\"calc-key op\" data-key=\"⌫\">⌫</button><button type=\"button\" class=\"calc-key equals\" data-key=\"=\">=</button></div></div><div class=\"calc-panel\" data-panel=\"convert\" hidden><div class=\"converter\"><div class=\"converter-cats\"><button type=\"button\" class=\"converter-cat active\" data-cat=\"length\">Length</button><button type=\"button\" class=\"converter-cat\" data-cat=\"weight\">Weight</button><button type=\"button\" class=\"converter-cat\" data-cat=\"temp\">Temp</button><button type=\"button\" class=\"converter-cat\" data-cat=\"data\">Data</button></div><div class=\"converter-body\"></div></div></div></div><button type=\"button\" class=\"calc-insert-btn\">Insert into message ↓</button></div></div><div class="input-bar-row">    <input class="chat-file" type="file" accept="image/*" hidden><button type="button" class="input-bar-tool chat-camera" title="Take a photo or upload">' + toolIcon('camera', 18) + '</button><button type="button" class="input-bar-tool chat-calc" title="Calculator">' + toolIcon('calculator', 18) + '</button><textarea class="input-bar-textarea" rows="1" placeholder="Ask a question..."></textarea><button class="input-bar-send" type="submit">➤</button></div></form></main></div>';
+    root.innerHTML = '<div class="chat-layout"><aside class="chat-sidebar"><div class="sidebar-top"><a href="/" class="sidebar-logo"><span class="logo-icon">✦</span><span class="logo-text">AITutor</span></a><button class="new-chat-btn">＋ New Chat</button></div><div class="sidebar-chats"><p class="empty-chats">Loading chats…</p></div><div class="sidebar-footer"><a href="/terms" class="sidebar-doc-link">Terms</a><a href="/privacy" class="sidebar-doc-link">Privacy</a><a href="/updates" class="sidebar-doc-link">Updates</a></div></aside><main class="chat-main"><div class="chat-header"><div class="chat-title-group"><h2>New Chat</h2><span class="session-chip" aria-label="Current chat session"></span></div><div class="header-right"><div class="subject-chips small">' + subjects.map(function (s) { return '<button class="chip" data-subject="' + s + '">' + subjectIcon(s) + ' ' + s + '</button>'; }).join('') + '</div><div class="model-switcher"><button class="model-trigger">◉ <span class="model-name">Qwen 3.8 27B</span>⌄</button><div class="model-dropdown" hidden></div></div></div></div><div class="chat-messages"><div class="chat-empty-state"><div class="empty-icon">✦</div><h3>Ask me anything</h3><p>Math, English, Science, History, or General — I\'ll break it down step by step.</p><div class="empty-suggestions"><button class="suggestion-chip">12 / 9 = ?</button><button class="suggestion-chip">Explain photosynthesis</button><button class="suggestion-chip">Counting</button><button class="suggestion-chip">WWI causes</button></div></div></div><div class="chat-error" hidden></div><form class="chat-input-bar"><div class="input-bar-preview" hidden><img class="input-bar-thumb" alt="Uploaded"><span class="image-name"></span><button type="button">✕</button></div><div class="input-bar-calc" hidden><div class=\"calculator\"><div class=\"calc-header\"><div class=\"calc-mode-tabs\"><button type=\"button\" class=\"calc-tab active\" data-mode=\"basic\">Calc</button><button type=\"button\" class=\"calc-tab\" data-mode=\"convert\">Convert</button></div><span class=\"calc-title\">AI Calc</span></div><div class=\"calc-panels\"><div class=\"calc-panel\" data-panel=\"calc\"><div class=\"calc-display\"><div class=\"calc-expr\">0</div><div class=\"calc-result\"></div></div><div class=\"calc-keys-sci\"><button type=\"button\" class=\"calc-key op\" data-key=\"√(\">√</button><button type=\"button\" class=\"calc-key op\" data-key=\"sin(\">sin</button><button type=\"button\" class=\"calc-key op\" data-key=\"cos(\">cos</button><button type=\"button\" class=\"calc-key op\" data-key=\"tan(\">tan</button><button type=\"button\" class=\"calc-key op\" data-key=\"log(\">log</button><button type=\"button\" class=\"calc-key op\" data-key=\"ln(\">ln</button><button type=\"button\" class=\"calc-key op\" data-key=\"π\">π</button><button type=\"button\" class=\"calc-key op\" data-key=\"^\">^</button></div><div class=\"calc-keys\"><button type=\"button\" class=\"calc-key clear\" data-key=\"C\">C</button><button type=\"button\" class=\"calc-key op\" data-key=\"( )\">( )</button><button type=\"button\" class=\"calc-key op\" data-key=\"%\">%</button><button type=\"button\" class=\"calc-key op\" data-key=\"÷\">÷</button><button type=\"button\" class=\"calc-key\" data-key=\"7\">7</button><button type=\"button\" class=\"calc-key\" data-key=\"8\">8</button><button type=\"button\" class=\"calc-key\" data-key=\"9\">9</button><button type=\"button\" class=\"calc-key op\" data-key=\"×\">×</button><button type=\"button\" class=\"calc-key\" data-key=\"4\">4</button><button type=\"button\" class=\"calc-key\" data-key=\"5\">5</button><button type=\"button\" class=\"calc-key\" data-key=\"6\">6</button><button type=\"button\" class=\"calc-key op\" data-key=\"−\">−</button><button type=\"button\" class=\"calc-key\" data-key=\"1\">1</button><button type=\"button\" class=\"calc-key\" data-key=\"2\">2</button><button type=\"button\" class=\"calc-key\" data-key=\"3\">3</button><button type=\"button\" class=\"calc-key op\" data-key=\"+\">+</button><button type=\"button\" class=\"calc-key\" data-key=\"0\">0</button><button type=\"button\" class=\"calc-key\" data-key=\".\">.</button><button type=\"button\" class=\"calc-key op\" data-key=\"⌫\">⌫</button><button type=\"button\" class=\"calc-key equals\" data-key=\"=\">=</button></div></div><div class=\"calc-panel\" data-panel=\"convert\" hidden><div class=\"converter\"><div class=\"converter-cats\"><button type=\"button\" class=\"converter-cat active\" data-cat=\"length\">Length</button><button type=\"button\" class=\"converter-cat\" data-cat=\"weight\">Weight</button><button type=\"button\" class=\"converter-cat\" data-cat=\"temp\">Temp</button><button type=\"button\" class=\"converter-cat\" data-cat=\"data\">Data</button></div><div class=\"converter-body\"></div></div></div></div><button type=\"button\" class=\"calc-insert-btn\">Insert into message ↓</button></div></div><div class="input-bar-row">    <input class="chat-file" type="file" accept="image/*" hidden><button type="button" class="input-bar-tool chat-camera" title="Take a photo or upload">' + toolIcon('camera', 18) + '</button><button type="button" class="input-bar-tool chat-calc" title="Calculator">' + toolIcon('calculator', 18) + '</button><button type="button" class="input-bar-tool chat-websearch" title="Web search: answer with fresh web results">' + toolIcon('globe', 18) + '</button><textarea class="input-bar-textarea" rows="1" placeholder="Ask a question..."></textarea><button class="input-bar-send" type="submit">➤</button></div></form></main></div>';
 
     var messages = root.querySelector('.chat-messages');
     var errorBox = root.querySelector('.chat-error');
@@ -116,6 +117,14 @@
       sessionChip.textContent = 'Session ' + id.slice(0, 8);
       window.history.replaceState(null, '', '/chats?session=' + encodeURIComponent(id));
     };
+    // Server chat ids are 12 hex characters; locally cached ones start with 'local-'.
+    // Anything else in ?session= is junk someone typed into the URL, not a real chat.
+    var isWellFormedSessionId = function (id) {
+      return typeof id === 'string' && (id.startsWith('local-') || /^[a-f0-9]{6,64}$/.test(id));
+    };
+    if (requestedSession && !isWellFormedSessionId(requestedSession)) {
+      requestedSession = null; // fall through to a fresh session below
+    }
     var sessionId = requestedSession || newSessionId();
     updateSessionUrl(sessionId);
     var activeSubject = pending && subjects.indexOf(pending.subject) !== -1 ? pending.subject : 'General';
@@ -183,7 +192,13 @@
       if (!requestedSession) return;
       return Api.getChat(requestedSession).then(function (existing) {
         existing = mergeWithLocalChat(existing, requestedSession);
-        if (!existing) return;
+        if (!existing) {
+          // Unknown session id (404 from the server, no local copy): start a
+          // fresh chat and clean the bogus id out of the URL.
+          sessionId = newSessionId();
+          updateSessionUrl(sessionId);
+          return;
+        }
         activeId = existing.id;
         updateSessionUrl(existing.id);
         turns = existing.messages.filter(function (turn) { return typeof turn.content === 'string'; });
@@ -198,7 +213,7 @@
       selectedModel = models[0].id;
       var dropdown = root.querySelector('.model-dropdown');
       dropdown.innerHTML = '<div class="model-dropdown-label">Select Model</div>' + models.map(function (model) {
-        return '<button class="model-option" data-model="' + model.id + '"><span>' + model.name + '</span><small>' + model.provider + ' · ' + model.tier + (model.supportsImages ? ' · 📷' : '') + '</small></button>';
+        return '<button class="model-option" data-model="' + model.id + '"><span>' + model.name + '</span><small>' + model.provider + ' · ' + model.tier + (model.supportsImages ? ' · 📷' : '') + (model.supportsWebSearch ? ' · 🌐' : '') + '</small></button>';
       }).join('');
     });
 
@@ -269,6 +284,13 @@
         });
       }
     });
+    var webSearchOn = false;
+    var webSearchBtn = root.querySelector('.chat-websearch');
+    webSearchBtn.addEventListener('click', function () {
+      webSearchOn = !webSearchOn;
+      webSearchBtn.classList.toggle('calc-active', webSearchOn);
+      webSearchBtn.title = webSearchOn ? 'Web search is ON — click to turn off' : 'Web search: answer with fresh web results';
+    });
     form.addEventListener('submit', function (event) {
       event.preventDefault();
       var prompt = input.value.trim() || (pending ? pending.prompt || '' : '');
@@ -276,6 +298,12 @@
       var pendingSubject = pending ? pending.subject || '' : '';
       if (!prompt && !image && !pendingImage) return showError('Type a question or add a photo.');
       showError('');
+      var usedWebSearch = webSearchOn;
+      if (webSearchOn && !image && !pendingImage) {
+        prompt = '🔎 ' + prompt;
+      }
+      webSearchOn = false;
+      webSearchBtn.classList.remove('calc-active');
       if (pendingSubject && subjects.indexOf(pendingSubject) !== -1) {
         activeSubject = pendingSubject;
         root.querySelectorAll('[data-subject]').forEach(function (b) { b.classList.toggle('active', b.dataset.subject === activeSubject); });
@@ -287,6 +315,10 @@
         showError('This model cannot view images. Switch to Qwen 3.8 27B, then send the photo again.');
         return;
       }
+      if (webSearchOn && selectedModelInfo && selectedModelInfo.supportsWebSearch === false) {
+        showError('Web search needs the Compound model. Open the model picker (top right), switch to Compound or Compound Mini, and send again.');
+        return;
+      }
       var userTurn = { role: 'user', content: prompt || 'Please read and explain the attached homework image.', image: sentImage || '' };
       var history = turns.slice(-6);
       turns = turns.concat([userTurn]);
@@ -296,7 +328,7 @@
       preview.hidden = true;
       previewImage.removeAttribute('src');
       renderMessages(true);
-      Api.askTutor({ prompt: prompt, image: sentImage, subject: activeSubject, model: selectedModel, history: history }).then(function (result) {
+      Api.askTutor({ prompt: prompt, image: sentImage, subject: activeSubject, model: selectedModel, history: history, webSearch: usedWebSearch }).then(function (result) {
         if (result.error) {
           turns = turns.slice(0, -1);
           renderMessages();
@@ -308,6 +340,13 @@
         var answer = { role: 'assistant', content: result.answer };
         turns = turns.concat([answer]);
         renderMessages();
+        if (result.webSearch) {
+          var note = document.createElement('div');
+          note.className = 'websearch-note';
+          note.textContent = '🌐 Answered with web search';
+          messages.appendChild(note);
+          messages.scrollTop = messages.scrollHeight;
+        }
         var finish = function () { refreshChats(); };
         if (activeId && activeId.indexOf('local-') !== 0) {
           var cached = { id: activeId, title: turns[0].content.slice(0, 60), subject: activeSubject, messages: turns.slice(), updated: Math.floor(Date.now() / 1000) };

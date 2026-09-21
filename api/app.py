@@ -19,11 +19,11 @@ CHAT_LOCK = Lock()
 IN_MEMORY_CHATS: list[dict[str, Any]] = []
 STORAGE_UNAVAILABLE = False
 MODELS = [
-    {"id": "qwen/qwen3.8-27b", "name": "Qwen 3.8 27B", "provider": "Alibaba", "tier": "balanced", "supportsImages": True},
-    {"id": "openai/gpt-oss-120b", "name": "GPT OSS 120B", "provider": "OpenAI", "tier": "powerful", "supportsImages": False},
-    {"id": "openai/gpt-oss-20b", "name": "GPT OSS 20B", "provider": "OpenAI", "tier": "fast", "supportsImages": False},
-    {"id": "groq/compound", "name": "Compound", "provider": "Groq", "tier": "powerful", "supportsImages": False},
-    {"id": "groq/compound-mini", "name": "Compound Mini", "provider": "Groq", "tier": "fast", "supportsImages": False},
+    {"id": "qwen/qwen3.8-27b", "name": "Qwen 3.8 27B", "provider": "Alibaba", "tier": "balanced", "supportsImages": True, "supportsWebSearch": False},
+    {"id": "openai/gpt-oss-120b", "name": "GPT OSS 120B", "provider": "OpenAI", "tier": "powerful", "supportsImages": False, "supportsWebSearch": False},
+    {"id": "openai/gpt-oss-20b", "name": "GPT OSS 20B", "provider": "OpenAI", "tier": "fast", "supportsImages": False, "supportsWebSearch": False},
+    {"id": "groq/compound", "name": "Compound", "provider": "Groq", "tier": "powerful", "supportsImages": False, "supportsWebSearch": True},
+    {"id": "groq/compound-mini", "name": "Compound Mini", "provider": "Groq", "tier": "fast", "supportsImages": False, "supportsWebSearch": True},
 ]
 
 
@@ -267,13 +267,31 @@ def chat_summary(chat: dict[str, Any]) -> dict[str, Any]:
     return {"id": chat.get("id", ""), "title": title, "subject": chat.get("subject", "General"), "created": chat.get("created", 0), "updated": chat.get("updated", 0)}
 
 
-def tutor_prompt(request: str, subject: str) -> str:
+WEB_SEARCH_HINTS = re.compile(
+    r"\b(latest|breaking|news|today|current|currently|recent|recently|this (week|month|year)|who won|weather|forecast|stock price|release date|search (for|the web)|look up|population of|2025|2026)\b",
+    re.IGNORECASE,
+)
+
+
+def tutor_prompt(request: str, subject: str, web_search: bool = False) -> str:
+    extra = ("Use web search to look up current information before answering. "
+             "Keep the usual answer-first format, and list the source links you used at the end under \"Sources:\". "
+             if web_search else "")
     return ("You are AI Tutor for PK through college students. Answer first, then show work step by step. "
             "Never repeat or restate the student's question; jump straight into the answer. "
             "Adapt to the student's level. Use plain text/basic markdown only; never use LaTeX. "
             "For math show every calculation, fractions and decimals. End with a Practice section "
             f"containing one similar problem. Keep this focused micro-lesson under 250 words. "
-            f"Subject: {subject}. Student request: {request}")
+            f"Subject: {subject}. " + extra + f"Student request: {request}")
+
+
+def wants_web_search(data: dict[str, Any], prompt: str, has_image: bool) -> bool:
+    """The 🌐 toggle forces web search; recent-information questions get it automatically."""
+    if has_image:
+        return False
+    if data.get("webSearch") is True:
+        return True
+    return bool(WEB_SEARCH_HINTS.search(prompt))
 
 
 MAX_ANSWER_WORDS = 240
@@ -387,7 +405,17 @@ class ApiHandler(BaseHTTPRequestHandler):
                 return self.send_json({"error": "Add a question or upload a homework image first."}, 400)
             history = data.get("history", []) if isinstance(data.get("history"), list) else []
             messages = [{"role": turn["role"], "content": turn["content"]} for turn in history[-6:] if isinstance(turn, dict) and turn.get("role") in ("user", "assistant") and isinstance(turn.get("content"), str)]
-            content: list[dict[str, Any]] = [{"type": "text", "text": tutor_prompt(prompt or "Please explain the attached homework image.", str(data.get("subject", "General")))}]
+            use_web_search = wants_web_search(data, prompt, image.startswith("data:image/"))
+            selected_model = next((item for item in MODELS if item["id"] == str(data.get("model", ""))), None)
+            # Forcing web search only works on the Compound models — anything else
+            # gets the same switch-model guidance as unsupported photos.
+            if data.get("webSearch") is True and not image.startswith("data:image/") and selected_model is not None and not selected_model.get("supportsWebSearch", False):
+                return self.send_json({"error": "Web search needs the Compound model. Open the model picker, switch to Compound (or Compound Mini), and send again."}, 400)
+            # compound-mini performs the search: the full Compound model is currently
+            # rejected by Groq with 413 (request too large) on this account.
+            if use_web_search and (selected_model is None or not selected_model.get("supportsWebSearch", False)):
+                data = {**data, "model": "groq/compound-mini"}
+            content: list[dict[str, Any]] = [{"type": "text", "text": tutor_prompt(prompt or "Please explain the attached homework image.", str(data.get("subject", "General")), web_search=use_web_search)}]
             model = next((item for item in MODELS if item["id"] == str(data.get("model", ""))), MODELS[0])
             if image.startswith("data:image/") and not model.get("supportsImages"):
                 return self.send_json({"error": "This model cannot view images. Switch to Qwen 3.8 27B and send the photo again."}, 400)
