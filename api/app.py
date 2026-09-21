@@ -18,6 +18,9 @@ DATA_FILE = Path(__file__).parent / "data" / "chats.json"
 CHAT_LOCK = Lock()
 IN_MEMORY_CHATS: list[dict[str, Any]] = []
 STORAGE_UNAVAILABLE = False
+# Reported by /api/health so hosts can be verified as up to date
+# (e.g. the forms feature needs >= 1.7.0).
+APP_VERSION = "1.7.0"
 MODELS = [
     {"id": "qwen/qwen3.8-27b", "name": "Qwen 3.8 27B", "provider": "Alibaba", "tier": "balanced", "supportsImages": True, "supportsWebSearch": False},
     {"id": "openai/gpt-oss-120b", "name": "GPT OSS 120B", "provider": "OpenAI", "tier": "powerful", "supportsImages": False, "supportsWebSearch": False},
@@ -364,7 +367,7 @@ class ApiHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         path, _, query = self.path.partition("?")
         if path == "/api/health":
-            return self.send_json({"ok": True, "configured": bool(os.getenv("GROQ_API_KEY")), "model": MODELS[0]["id"]})
+            return self.send_json({"ok": True, "version": APP_VERSION, "features": {"forms": True, "webSearch": True, "community": True}, "configured": bool(os.getenv("GROQ_API_KEY")), "model": MODELS[0]["id"]})
         if path == "/api/models":
             return self.send_json({"models": MODELS})
         if path == "/api/chats":

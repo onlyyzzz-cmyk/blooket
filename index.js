@@ -9,6 +9,9 @@ import { fileURLToPath } from 'node:url';
 import Groq from 'groq-sdk';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// Bumped whenever server features change; /api/health reports it so hosts can
+// be verified as up to date (e.g. the forms feature needs >= 1.7.0).
+const APP_VERSION = '1.7.0';
 const port = Number(process.env.PORT || process.env.API_PORT || 8787);
 const publicPath = path.join(__dirname, 'public');
 const dataDir = process.env.DATA_DIR || path.join(__dirname, 'api', 'data');
@@ -369,7 +372,7 @@ async function handleApi(req, res, url) {
   }
 
   if (url.pathname === '/api/health' && req.method === 'GET') {
-    sendJson(res, 200, { ok: true, configured: Boolean(groq), model: DEFAULT_MODEL }, headers);
+    sendJson(res, 200, { ok: true, version: APP_VERSION, features: { forms: true, webSearch: true, community: true }, configured: Boolean(groq), model: DEFAULT_MODEL }, headers);
     return true;
   }
   if (url.pathname === '/api/models' && req.method === 'GET') {
